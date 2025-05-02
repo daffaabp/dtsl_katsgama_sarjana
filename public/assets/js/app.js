@@ -1,0 +1,1 @@
+const site_url = 'https://katsgama.online/sarjana/public/';
