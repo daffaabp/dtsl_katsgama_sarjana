@@ -55,23 +55,22 @@ class AlumniModel extends Model
             data_alumni.occupation_id,
             data_alumni.photo,
 
-            wisuda.twisuda,
-            wisuda.blnwisuda,
+            MAX(wisuda.twisuda) as twisuda,
+            MAX(wisuda.blnwisuda) as blnwisuda,
 
-            akademik.jenjang,
-            akademik.universitas,
-            akademik.departemen,
-            akademik.tmasuk,
-            akademik.tlulus,
-            propinsi.id AS propinsi_id,
-            propinsi.nama AS propinsi,
-            occupations.name AS occupation'
+            MAX(akademik.jenjang) as jenjang,
+            MAX(akademik.universitas) as universitas,
+            MAX(akademik.departemen) as departemen,
+            MAX(akademik.tmasuk) as tmasuk,
+            MAX(akademik.tlulus) as tlulus,
+            MAX(propinsi.id) AS propinsi_id,
+            MAX(propinsi.nama) AS propinsi,
+            MAX(occupations.name) AS occupation'
             )
             ->join('akademik', 'data_alumni.id = akademik.idorg', 'left')
             ->join('occupations', 'data_alumni.occupation_id = occupations.id', 'left')
             ->join('propinsi', 'data_alumni.prop_id = propinsi.id', 'left')
             ->join('wisuda', 'data_alumni.id = wisuda.idorg', 'left');
-
 
         // filter program sarjana
         $this->where('akademik.jenjang', 'S1');
@@ -121,7 +120,7 @@ class AlumniModel extends Model
             $this->where('wisuda.blnwisuda', $filter['blnwisuda']);
         }
 
-        $this->groupBy('data_alumni.id');
+        $this->groupBy('data_alumni.id, data_alumni.nama, data_alumni.email, data_alumni.nowa, data_alumni.notelp, data_alumni.alamat, data_alumni.prop_id, data_alumni.jabatan, data_alumni.instansi, data_alumni.occupation_id, data_alumni.photo');
         return $this;
     }
 
@@ -144,27 +143,28 @@ class AlumniModel extends Model
             data_alumni.occupation_id,
             data_alumni.photo,
 
-            akademik.jenjang,
-            akademik.universitas,
-            akademik.departemen,
-            akademik.tmasuk,
-            akademik.tlulus,
-            propinsi.id AS propinsi_id,
-            propinsi.nama AS propinsi,
-            occupations.name AS occupation'
+            MAX(wisuda.twisuda) as twisuda,
+            MAX(wisuda.blnwisuda) as blnwisuda,
+
+            MAX(akademik.jenjang) as jenjang,
+            MAX(akademik.universitas) as universitas,
+            MAX(akademik.departemen) as departemen,
+            MAX(akademik.tmasuk) as tmasuk,
+            MAX(akademik.tlulus) as tlulus,
+            MAX(akademik.prodi) as prodi,
+            MAX(propinsi.id) AS propinsi_id,
+            MAX(propinsi.nama) AS propinsi,
+            MAX(occupations.name) AS occupation'
             )
             ->join('akademik', 'data_alumni.id = akademik.idorg', 'left')
             ->join('occupations', 'data_alumni.occupation_id = occupations.id', 'left')
-            ->join('propinsi', 'data_alumni.prop_id = propinsi.id', 'left');
-
-
-        // filter program sarjana
-        $this->whereIn('akademik.jenjang', ['S1']);
+            ->join('propinsi', 'data_alumni.prop_id = propinsi.id', 'left')
+            ->join('wisuda', 'data_alumni.id = wisuda.idorg', 'left');
 
         // filter admin angkatan
-        // if (session()->get('role') == 2 && session()->get('angkatan')) {
-        //     $this->where('akademik.tmasuk', session()->get('angkatan'));
-        // }
+        if (session()->get('role') == 2 && session()->get('angkatan')) {
+            $this->where('akademik.tmasuk', session()->get('angkatan'));
+        }
 
         // filter QUery 
         if (isset($filter['q']) && !empty($filter['q'])) {
@@ -197,7 +197,16 @@ class AlumniModel extends Model
         if (isset($filter['prodiAlt']) && !empty($filter['prodiAlt'])) {
             $this->like('akademik.prodi', $filter['prodiAlt'], 'both');
         }
-        $this->groupBy('data_alumni.id');
+
+        if (isset($filter['twisuda']) && !empty($filter['twisuda'])) {
+            $this->where('wisuda.twisuda', $filter['twisuda']);
+        }
+
+        if (isset($filter['blnwisuda']) && !empty($filter['blnwisuda'])) {
+            $this->where('wisuda.blnwisuda', $filter['blnwisuda']);
+        }
+
+        $this->groupBy('data_alumni.id, data_alumni.nama, data_alumni.email, data_alumni.nowa, data_alumni.notelp, data_alumni.alamat, data_alumni.prop_id, data_alumni.jabatan, data_alumni.instansi, data_alumni.occupation_id, data_alumni.photo');
         return $this;
     }
 
@@ -276,7 +285,7 @@ class AlumniModel extends Model
         return $this;
     }
 
-    public function mapping_pengguna($filter)
+    public function mapping_pengguna()
     {
         $this
             ->table('data_alumni')
@@ -289,64 +298,32 @@ class AlumniModel extends Model
             data_alumni.notelp,
             data_alumni.alamat,
             data_alumni.prop_id,
-            data_alumni.pengguna_id,
             data_alumni.jabatan,
             data_alumni.instansi,
             data_alumni.occupation_id,
             data_alumni.photo,
 
-            akademik.jenjang,
-            akademik.universitas,
-            akademik.departemen,
-            akademik.tmasuk,
-            akademik.tlulus,
-            propinsi.id AS propinsi_id,
-            propinsi.nama AS propinsi,
-            occupations.name AS occupation'
+            MAX(wisuda.twisuda) as twisuda,
+            MAX(wisuda.blnwisuda) as blnwisuda,
+
+            MAX(akademik.jenjang) as jenjang,
+            MAX(akademik.universitas) as universitas,
+            MAX(akademik.departemen) as departemen,
+            MAX(akademik.tmasuk) as tmasuk,
+            MAX(akademik.tlulus) as tlulus,
+            MAX(akademik.prodi) as prodi,
+            MAX(propinsi.id) AS propinsi_id,
+            MAX(propinsi.nama) AS propinsi,
+            MAX(occupations.name) AS occupation,
+            MAX(pengguna.id) as pengguna_id'
             )
-            ->join('akademik', 'data_alumni.id = akademik.idorg', '')
-            ->join('occupations', 'data_alumni.occupation_id = occupations.id', '')
-            ->join('propinsi', 'data_alumni.prop_id = propinsi.id', '');
+            ->join('akademik', 'data_alumni.id = akademik.idorg', 'left')
+            ->join('occupations', 'data_alumni.occupation_id = occupations.id', 'left')
+            ->join('propinsi', 'data_alumni.prop_id = propinsi.id', 'left')
+            ->join('wisuda', 'data_alumni.id = wisuda.idorg', 'left')
+            ->join('pengguna', 'data_alumni.email = pengguna.username', 'left')
+            ->groupBy('data_alumni.id, data_alumni.nama, data_alumni.email, data_alumni.nowa, data_alumni.notelp, data_alumni.alamat, data_alumni.prop_id, data_alumni.jabatan, data_alumni.instansi, data_alumni.occupation_id, data_alumni.photo');
 
-
-        // filter program sarjana
-        $this->where('akademik.jenjang', 'S1');
-
-        // filter admin angkatan
-        if (session()->get('role') == 2 && session()->get('angkatan')) {
-            $this->where('akademik.tmasuk', session()->get('angkatan'));
-        }
-
-        // filter Query 
-        if (isset($filter['pengguna_id']) && !empty($filter['pengguna_id'])) {
-            $this->where('data_alumni.pengguna_id', $filter['pengguna_id']);
-        }
-
-        if (isset($filter['q']) && !empty($filter['q'])) {
-            $this->like('data_alumni.nama', $filter['q'], 'both');
-        }
-
-        if (isset($filter['tmasuk']) && !empty($filter['tmasuk'])) {
-            $this->where('akademik.tmasuk', $filter['tmasuk']);
-        }
-
-        if (isset($filter['occupation']) && !empty($filter['occupation'])) {
-            $this->where('occupations.id', $filter['occupation']);
-        }
-
-        if (isset($filter['province']) && !empty($filter['province'])) {
-            $this->where('data_alumni.prop_id', $filter['province']);
-        }
-
-        if (isset($filter['prodi']) && !empty($filter['prodi'])) {
-            $db = db_connect();
-            $prodi = $db->table('prodi')->limit(1)->get()->getRowArray();
-            $this->like('akademik.prodi', $prodi['nprodi'], 'both');
-        }
-        if (isset($filter['prodiAlt']) && !empty($filter['prodiAlt'])) {
-            $this->like('akademik.prodi', $filter['prodiAlt'], 'both');
-        }
-        $this->groupBy('data_alumni.id');
         return $this;
     }
 
