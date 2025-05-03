@@ -1,7 +1,9 @@
 .env
+.env copy
 tugas.txt
 katsgamaonline_sarjana.sql
 catatan-kendala.txt
 report.txt
 panduan-instalasi-docker.md
+writable/
 *.log
