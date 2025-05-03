@@ -14,10 +14,11 @@ services:
       SERVICE_NAME: app
       SERVICE_TAGS: dev
       PHP_FPM_LISTEN: 9000
-      PHP_FPM_MAX_CHILDREN: 50
-      PHP_FPM_START_SERVERS: 5
-      PHP_FPM_MIN_SPARE_SERVERS: 5
-      PHP_FPM_MAX_SPARE_SERVERS: 35
+      PHP_FPM_MAX_CHILDREN: 20
+      PHP_FPM_START_SERVERS: 2
+      PHP_FPM_MIN_SPARE_SERVERS: 2
+      PHP_FPM_MAX_SPARE_SERVERS: 10
+      PHP_FPM_MAX_REQUESTS: 500
     working_dir: /var/www
     volumes:
       - ./:/var/www
@@ -27,6 +28,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "php-fpm -t || exit 1"]
       interval: 10s
@@ -48,6 +57,14 @@ services:
       - app-network
     depends_on:
       - app
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   # MySQL Service
   db:
@@ -70,6 +87,14 @@ services:
       - app-network
     security_opt:
       - seccomp:unconfined
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     command: >
       --default-authentication-plugin=mysql_native_password
       --sql-mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
