@@ -1,5 +1,4 @@
-.env
-.env copy
+.env*
 tugas.txt
 katsgamaonline_sarjana.sql
 catatan-kendala.txt
