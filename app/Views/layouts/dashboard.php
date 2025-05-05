@@ -287,6 +287,7 @@
 	<!--begin::Javascript-->
 	<script>
 		var hostUrl = "assets/";
+		var site_url = "<?php echo site_url(); ?>";
 	</script>
 	<!--begin::Global Javascript Bundle(used by all pages)-->
 	<script src="<?php echo site_url() ?>assets/plugins/global/plugins.bundle.js"></script>
