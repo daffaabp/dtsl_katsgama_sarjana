@@ -52,7 +52,6 @@ deploy-dev:
   rules:
     - if : '$CI_COMMIT_BRANCH == "develop"'
   before_script:
-    - apt update -y && apt install rsync openssh-client -y
     - eval $(ssh-agent -s)
     - echo "$SSH_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
@@ -62,15 +61,41 @@ deploy-dev:
   script:
     - echo $HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "mkdir -p $HOME_DIR"
-    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  ./docker "$SSH_USER"@"$HOST":$HOME_DIR/docker
+    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  ./docker "$SSH_USER"@"$HOST":$HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type f -exec chmod 644 {} \;"
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type d -exec chmod 755 {} \;"
     - ssh "$SSH_USER"@"$HOST" "sudo chown -R www-data:www-data $HOME_DIR"
     - ssh "$SSH_USER"@"$HOST" "[ -d "$WORK_DIR" ] || sudo mkdir -p "$WORK_DIR""
     - ssh "$SSH_USER"@"$HOST" "sudo rsync -a --progress --delete-before $HOME_DIR $WORK_DIR"
     - ssh "$SSH_USER"@"$HOST" "sudo chown -R $SSH_USER:$SSH_USER $HOME_DIR"
-    - ssh "$SSH_USER"@"$HOST" "rm -r $HOME_DIR"
+    - ssh "$SSH_USER"@"$HOST" "rm -vr $HOME_DIR"
 
+deploy-prod:
+  stage: deploy
+  image: hub.ugm.id/infra_dti/runner:ubuntu-jammy
+  # when: manual
+  tags:
+    - putdev-runner
+  rules:
+    - if : '$CI_COMMIT_BRANCH == "main"'
+  before_script:
+    - eval $(ssh-agent -s)
+    - echo "$SSH_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $HOST >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo $HOME_DIR
+    - ssh "$SSH_USER"@"$HOST" "mkdir -p $HOME_DIR"
+    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  ./docker "$SSH_USER"@"$HOST":$HOME_DIR
+    - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type f -exec chmod 644 {} \;"
+    - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type d -exec chmod 755 {} \;"
+    - ssh "$SSH_USER"@"$HOST" "sudo chown -R www-data:www-data $HOME_DIR"
+    - ssh "$SSH_USER"@"$HOST" "[ -d "$WORK_DIR" ] || sudo mkdir -p "$WORK_DIR""
+    - ssh "$SSH_USER"@"$HOST" "sudo rsync -a --progress --delete-before $HOME_DIR $WORK_DIR"
+    - ssh "$SSH_USER"@"$HOST" "sudo chown -R $SSH_USER:$SSH_USER $HOME_DIR"
+    - ssh "$SSH_USER"@"$HOST" "rm -vr $HOME_DIR"
 
 call_portainer_dev:
   image: hub.ugm.id/proxy/alpine:3.17
@@ -94,7 +119,7 @@ call_portainer_prod:
   variables:
     PORTAINER_HOOK: $HOOK_PROD
   rules:
-    - if: '$CI_COMMIT_BRANCH == "prod"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
       needs: ["build_image_prod"]
   script:
     - apk add --no-cache curl
