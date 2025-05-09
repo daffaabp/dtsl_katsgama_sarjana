@@ -45,7 +45,7 @@ build_image_prod:
 
 deploy-dev:
   stage: deploy
-  image: hub.ugm.id/proxy/ubuntu:jammy
+  image: hub.ugm.id/infra-dti/runner:ubuntu-jammy
   # when: manual
   tags:
     - putdev-runner
