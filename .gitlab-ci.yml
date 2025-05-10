@@ -109,6 +109,7 @@ call_portainer_dev:
       needs: ["build_image_dev"]
   script:
     - apk add --no-cache curl
+    - echo $PORTAINER_HOOK
     - curl -X POST $PORTAINER_HOOK
 
 call_portainer_prod:
