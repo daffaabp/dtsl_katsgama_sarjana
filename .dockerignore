@@ -1,0 +1,6 @@
+/docker
+docker-compose.yml
+Dockerfile
+.gitlab-ci.yml
+.gitignore
+.dockerignore
