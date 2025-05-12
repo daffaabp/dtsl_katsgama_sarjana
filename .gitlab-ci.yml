@@ -61,7 +61,7 @@ deploy-dev:
   script:
     - echo $HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "mkdir -p $HOME_DIR"
-    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  --exclude 'Dockerfile' --exclude '.dockerignore' --exclude 'writeble' ./ "$SSH_USER"@"$HOST":$HOME_DIR
+    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  --exclude 'Dockerfile' --exclude '.dockerignore' --exclude 'writable' ./ "$SSH_USER"@"$HOST":$HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type f -exec chmod 644 {} \;"
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type d -exec chmod 755 {} \;"
     - ssh "$SSH_USER"@"$HOST" "sudo chown -R www-data:www-data $HOME_DIR"
@@ -88,7 +88,7 @@ deploy-prod:
   script:
     - echo $HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "mkdir -p $HOME_DIR"
-    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  --exclude 'Dockerfile' --exclude '.dockerignore' --exclude 'writeble' ./ "$SSH_USER"@"$HOST":$HOME_DIR
+    - rsync -a --progress --delete-before --delete-excluded --exclude '.git' --exclude '.gitignore' --exclude '.gitlab-ci.yml' --exclude 'docker-compose.*' --exclude '*.md'  --exclude 'Dockerfile' --exclude '.dockerignore' --exclude 'writable' ./ "$SSH_USER"@"$HOST":$HOME_DIR
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type f -exec chmod 644 {} \;"
     - ssh "$SSH_USER"@"$HOST" "find $HOME_DIR -type d -exec chmod 755 {} \;"
     - ssh "$SSH_USER"@"$HOST" "sudo chown -R www-data:www-data $HOME_DIR"
