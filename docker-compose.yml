@@ -12,6 +12,9 @@ services:
       # - docroot:/var/www
       - ${MOUNTPOINT}/${KATSGAMA}/docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
       - ${ENVPOINT}/env-sarjana:/var/www/.env
+      - writeable:/var/www/writeable
+      - logstore:/var/www/writeable/logs
+      - logstore:/var/log/php
     networks:
       - app-network
     depends_on:
@@ -43,8 +46,9 @@ services:
     volumes:
       - docroot:/var/www
       - ${MOUNTPOINT}/${KATSGAMA}/docker/nginx/conf.d/:/etc/nginx/conf.d/
-      - ${MOUNTPOINT}/gardener/log/dev/:/var/log/nginx
-      - ${MOUNTPOINT}/gardener/log/dev/:/var/www/writeable/logs
+      - writeable:/var/www/writeable
+      - logstore:/var/www/writeable/logs
+      - logstore:/var/log/nginx
     networks:
       - app-network
     depends_on:
@@ -72,6 +76,7 @@ services:
     volumes:
       - dbdata:/var/lib/mysql/
       - ${MOUNTPOINT}/${KATSGAMA}/docker/mysql/my.cnf:/etc/mysql/my.cnf
+      - logstore:/var/log
     networks:
       - app-network
     security_opt:
@@ -125,3 +130,15 @@ volumes:
       type: none
       o: bind
       device: ${MOUNTPOINT}/${KATSGAMA}
+  logstore:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MOUNTPOINT}/gardener/log/dev/
+  writeable:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MOUNTPOINT}/writeable
