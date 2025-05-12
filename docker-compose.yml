@@ -12,8 +12,8 @@ services:
       # - docroot:/var/www
       - ${MOUNTPOINT}/${KATSGAMA}/docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
       - ${ENVPOINT}/env-sarjana:/var/www/.env
-      - writeable:/var/www/writeable
-      - logstore:/var/www/writeable/logs
+      - writable:/var/www/writable
+      - logstore:/var/www/writable/logs
       - logstore:/var/log/php
     networks:
       - app-network
@@ -46,7 +46,7 @@ services:
     volumes:
       - docroot:/var/www
       - ${MOUNTPOINT}/${KATSGAMA}/docker/nginx/conf.d/:/etc/nginx/conf.d/
-      - writeable:/var/www/writeable
+      - writable:/var/www/writable
       - logstore:/var/www/writeable/logs
       - logstore:/var/log/nginx
     networks:
@@ -136,9 +136,9 @@ volumes:
       type: none
       o: bind
       device: ${MOUNTPOINT}/gardener/log/dev/
-  writeable:
+  writable:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MOUNTPOINT}/writeable
+      device: ${MOUNTPOINT}/writable
