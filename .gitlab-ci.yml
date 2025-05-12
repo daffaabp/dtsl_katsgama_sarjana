@@ -103,7 +103,7 @@ call_portainer_dev:
   tags:
     - putdev-runner
   variables:
-    PORTAINER_HOOK: $HOOK_DEV
+    PORTAINER_HOOK: $HOOK_STAGING
   rules:
     - if: '$CI_COMMIT_BRANCH == "develop"'
       needs: ["build_image_dev"]
