@@ -1,0 +1,84 @@
+Lanjutan Laporan Ringkas Hasil Pemindaian Keamanan Aplikasi Katsgama
+==================================================================
+
+I. DETAIL TEMUAN LANJUTAN (Finding 12 s/d 26)
+-------------------------------------------
+
+A. Kategori: PHP Command Injection
+--------------------------------
+1. Finding 12 & 13
+   - URI: 
+     * vendor/composer/xdebug-handler/src/XdebugHandler.php (Finding 12)
+     * vendor/rector/rector/vendor/composer/xdebug-handler/src/XdebugHandler.php (Finding 13)
+   - Message: "Unsanitized input from an HTTP header flows into proc_open, where it is used to build a shell command"
+   - Risiko: Command Injection vulnerability
+   - Lokasi: 
+     * Finding 12: Line 300
+     * Finding 13: Line 240
+
+2. Finding 14
+   - URI: vendor/symfony/console/Command/DumpCompletionCommand.php
+   - Message: "Unsanitized input from HTTP header flows into Symfony\Component\Process\Process"
+   - Risiko: Command Injection melalui komponen Symfony Process
+   - Lokasi: Line 135
+
+B. Kategori: PHP Path Traversal
+------------------------------
+Finding 15
+- URI: vendor/friendsofphp/php-cs-fixer/src/Console/Command/SelfUpdateCommand.php
+- Message: "Unsanitized input from HTTP header flows into rename"
+- Risiko: Path Traversal vulnerability, memungkinkan manipulasi file sistem
+- Lokasi: Line 181
+
+C. Kategori: PHP Cross-Site Scripting (XSS)
+-----------------------------------------
+1. Finding 16 & 20
+   - URI: 
+     * vendor/composer/xdebug-handler/src/XdebugHandler.php (Finding 16)
+     * vendor/rector/rector/vendor/composer/xdebug-handler/src/XdebugHandler.php (Finding 20)
+   - Message: "Unsanitized input from HTTP header flows into die/exit"
+   - Risiko: Cross-Site Scripting (XSS)
+   - Lokasi:
+     * Finding 16: Line 319
+     * Finding 20: Line 256
+
+2. Finding 17, 18, 19
+   - URI: vendor/phpunit/phpunit/src/TextUI/TestRunner.php
+   - Message: "Unsanitized input from HTTP header flows into print statement"
+   - Risiko: Cross-Site Scripting (XSS)
+   - Lokasi:
+     * Finding 17: Line 540
+     * Finding 18: Line 547
+     * Finding 19: Line 862
+
+3. Finding 21 & 22
+   - URI: vendor/rector/rector/vendor/tracy/tracy/src/Tracy/BlueScreen/assets/section-cli.phtml
+   - Message: "Unsanitized input from HTTP header flows into echo statement"
+   - Risiko: Cross-Site Scripting (XSS)
+   - Lokasi: Line 27 (kedua finding)
+
+D. Kategori: PHP Regular Expression Denial of Service (reDOS)
+----------------------------------------------------------
+Finding 23, 24, 25, 26
+- URI: vendor/rector/rector/vendor/symfony/finder/Iterator/VcsIgnoredFilterIterator.php
+- Message: "Unsanitized user input flows into preg_match"
+- Risiko: Regular expression Denial of Service (reDOS)
+- Lokasi:
+  * Finding 23: Line 70
+  * Finding 24: Line 74
+  * Finding 25: Line 85
+  * Finding 26: Line 91
+
+II. ANALISIS AKAR PENYEBAB
+-------------------------
+1. Direktori vendor/ Terekspos
+   - Kerentanan terdeteksi pada file-file dalam direktori vendor/
+   - Direktori ini kemungkinan dapat diakses/dieksekusi dari luar
+
+2. Dependensi Development Ter-deploy
+   - Library development ikut terdeploy ke produksi:
+     * composer/xdebug-handler
+     * rector/rector
+     * symfony/finder
+     * tracy/tracy
+     * friendsofphp/php-cs-fixer
