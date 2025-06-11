@@ -1,0 +1,68 @@
+Laporan Ringkas Hasil Pemindaian Keamanan Aplikasi Katsgama
+==========================================================
+
+I. INFORMASI UMUM
+----------------
+- Tanggal Laporan Diterima: [Isi Tanggal Saat Kamu Menerima PDF dari UGM]
+- Sumber Laporan: Tim IT UGM (via DefectDojo, kemungkinan menggunakan Snyk/Semgrep)
+- Aplikasi Terdampak: 
+  * Web Sarjana Katsgama
+  * Pasca Sarjana (jika menggunakan dependensi dan konfigurasi serupa)
+
+II. RINGKASAN TEMUAN
+-------------------
+Pemindaian keamanan mengidentifikasi beberapa kerentanan dengan tingkat keparahan "High". 
+Semua temuan (Finding 1-11) merujuk pada jenis kerentanan dan file yang sama, hanya berbeda pada lokasi baris kode.
+
+III. DETAIL TEMUAN UTAMA
+-----------------------
+Nama Finding: php/CodeInjection_vendor/phpunit/phpunit/src/TextUI/TestRunner.php
+Severity: High
+Status: Active
+Tanggal: May 23, 2025
+Reporter: Syaiful Mustafa (ipul)
+Dojo ID: 5942
+
+IV. DESKRIPSI KERENTANAN
+------------------------
+ruleId: php/CodeInjection
+ruleIndex: 14
+message: "Unsanitized input from an HTTP header flows into assert, where it is executed as php code. This may result in a Code Injection vulnerability."
+
+V. PENJELASAN DETAIL
+-------------------
+Input dari HTTP header digunakan secara langsung (tanpa validasi) sebagai argumen untuk fungsi assert() di PHP. 
+Jika zend.assertions = 1 di php.ini, penyerang dapat memanipulasi HTTP header untuk mengeksekusi kode PHP berbahaya di server.
+
+VI. DETAIL TEKNIS
+----------------
+Skor Kerentanan: 810
+Lokasi: vendor/phpunit/phpunit/src/TextUI/TestRunner.php
+Base URI: %SRCROOT%
+
+VII. LOKASI BARIS KODE TERDAMPAK
+-------------------------------
+Finding 1: Line 195 (Col 22-79)
+Finding 2: Line 321 (Col 13-19)
+Finding 3: Line 426 (Col 17-23)
+Finding 4: Line 531 (Col 17-23)
+Finding 5: Line 581 (Col 13-19)
+Finding 6: Line 1148 (Col 13-38)
+Finding 7: Line 1155 (Col 13-38)
+Finding 8: Line 1162 (Col 13-38)
+Finding 9: Line 1175 (Col 13-38)
+Finding 10: Line 1188 (Col 13-38)
+Finding 11: Line 1225 (Col 9-15)
+
+VIII. PERBAIKAN OTOMATIS
+-----------------------
+isAutofixable: False (tidak dapat diperbaiki secara otomatis)
+
+IX. ANALISIS AKAR MASALAH
+-------------------------
+1. Potensi Eksekusi Kode:
+   - File TestRunner.php dari PHPUnit menggunakan fungsi assert() yang berpotensi menerima input tidak aman dari HTTP header
+
+2. Masalah Aksesibilitas:
+   - Direktori vendor/ terekspos publik
+   - Dependensi development dapat diakses di lingkungan produksi/staging

@@ -5,4 +5,5 @@ catatan-kendala.txt
 report.txt
 panduan-instalasi-docker.md
 writable/
+.cursorrules
 *.log

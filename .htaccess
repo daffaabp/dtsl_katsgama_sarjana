@@ -1,0 +1,42 @@
+# Disable directory browsing
+Options -Indexes
+
+# Deny access to sensitive files and directories
+<FilesMatch "^(\.env|composer\.(json|lock)|\.git.*|\.htaccess)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to dot files and directories
+RedirectMatch 404 /\..*$
+
+# Deny access to vendor directory
+RedirectMatch 404 /vendor/.*$
+
+# Deny access to development files
+RedirectMatch 404 /(tests|phpunit\.xml|README\.md|LICENSE)$
+
+# Protect against common exploits
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "no-referrer-when-downgrade"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# PHP security headers
+<IfModule mod_php.c>
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+    php_value expose_php Off
+</IfModule>
+
+# Rewrite engine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
+</IfModule> 
