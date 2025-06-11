@@ -10,33 +10,50 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     libzip-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    libicu-dev \
+    default-mysql-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && docker-php-ext-configure gd \
+    && docker-php-ext-configure intl
 
 # Install PHP extensions
-RUN docker-php-ext-install mysqli
+RUN docker-php-ext-install \
+    pdo_mysql \
+    mysqli \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    intl \
+    zip
+
+# Get latest Composer
+COPY --from=composer:2.6.6 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www
 
-# Install composer
-COPY --from=composer:2.6.6 /usr/bin/composer /usr/bin/composer
+# Add user for application
+RUN groupadd -g 1000 www
+RUN useradd -u 1000 -ms /bin/bash -g www www
 
-# Copy existing application directory contents
+# Copy existing application directory
 COPY . /var/www
 
 # Copy existing application directory permissions
-COPY --chown=www-data:www-data . /var/www
+COPY --chown=www:www . /var/www
 
-# Install production dependencies only
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+# Set COMPOSER_ALLOW_SUPERUSER
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# Change current user to www-data
-USER www-data
+# Install dependencies
+RUN composer install --no-dev --no-interaction --prefer-dist
+
+# Change current user to www
+USER www
 
 # Expose port 9000
 EXPOSE 9000
 
-# Start php-fpm server
 CMD ["php-fpm"] 
