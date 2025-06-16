@@ -7,12 +7,13 @@ Options -Indexes
     Deny from all
 </FilesMatch>
 
-# Block PHP execution in vendor directory
+# Block ALL access to vendor directory
 <Directory "vendor">
-    <FilesMatch "\.php$">
-        Order Deny,Allow
-        Deny from all
-    </FilesMatch>
+    Options None
+    Require all denied
+    Order deny,allow
+    Deny from all
+    Satisfy All
 </Directory>
 
 # Deny access to sensitive files and directories
@@ -23,9 +24,6 @@ Options -Indexes
 
 # Deny access to dot files and directories
 RedirectMatch 404 /\..*$
-
-# Deny access to vendor directory
-RedirectMatch 404 /vendor/.*$
 
 # Deny access to development files
 RedirectMatch 404 /(tests|phpunit\.xml|README\.md|LICENSE)$
