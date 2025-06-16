@@ -1,6 +1,20 @@
 # Disable directory browsing
 Options -Indexes
 
+# Block access to test and development files
+<FilesMatch "\.(phpunit|test|spec|phar)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Block PHP execution in vendor directory
+<Directory "vendor">
+    <FilesMatch "\.php$">
+        Order Deny,Allow
+        Deny from all
+    </FilesMatch>
+</Directory>
+
 # Deny access to sensitive files and directories
 <FilesMatch "^(\.env|composer\.(json|lock)|\.git.*|\.htaccess)$">
     Order allow,deny
