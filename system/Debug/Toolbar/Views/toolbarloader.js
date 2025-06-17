@@ -1,5 +1,73 @@
 document.addEventListener('DOMContentLoaded', loadDoc, false);
 
+/**
+ * Safely create and append style element
+ * @param {string} cssText
+ * @param {HTMLElement} target
+ */
+function createSafeStyle(cssText, target) {
+    const style = document.createElement('style');
+    style.textContent = cssText;
+    target.appendChild(style);
+}
+
+/**
+ * Safely create and append script element
+ * @param {string} jsText
+ * @param {HTMLElement} target
+ */
+function createSafeScript(jsText, target) {
+    const script = document.createElement('script');
+    script.textContent = jsText;
+    target.appendChild(script);
+}
+
+/**
+ * Create DOM elements safely
+ * @param {string} html
+ * @returns {DocumentFragment}
+ */
+function createSafeElements(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;  // Safe because template element prevents script execution
+    return template.content.cloneNode(true);
+}
+
+/**
+ * Update history button safely
+ * @param {string} debugbarTime
+ */
+function updateHistoryButton(debugbarTime) {
+    const h2 = document.querySelector('#ci-history > h2');
+    if (!h2) return;
+
+    // Clear existing content
+    h2.textContent = '';
+    
+    // Create text node
+    h2.appendChild(document.createTextNode('History '));
+    
+    // Create small element
+    const small = document.createElement('small');
+    small.textContent = 'You have new debug data.';
+    h2.appendChild(small);
+    
+    // Add space
+    h2.appendChild(document.createTextNode(' '));
+    
+    // Create button
+    const button = document.createElement('button');
+    button.textContent = 'Update';
+    button.addEventListener('click', () => loadDoc(debugbarTime));
+    h2.appendChild(button);
+    
+    // Update badge
+    const badge = document.querySelector('a[data-tab="ci-history"] > span > .badge');
+    if (badge) {
+        badge.className += ' active';
+    }
+}
+
 function loadDoc(time) {
     if (isNaN(time)) {
         time = document.getElementById("debugbar_loader").getAttribute("data-time");
@@ -25,25 +93,27 @@ function loadDoc(time) {
             let dynamicStyle = document.getElementById('debugbar_dynamic_style');
             let dynamicScript = document.getElementById('debugbar_dynamic_script');
 
-            // get the first style block, copy contents to dynamic_style, then remove here
+            // Extract and apply styles safely
             let start = responseText.indexOf('>', responseText.indexOf('<style')) + 1;
             let end = responseText.indexOf('</style>', start);
-            dynamicStyle.innerHTML = responseText.substr(start, end - start);
+            createSafeStyle(responseText.substr(start, end - start), dynamicStyle);
             responseText = responseText.substr(end + 8);
 
-            // get the first script after the first style, copy contents to dynamic_script, then remove here
+            // Extract and apply script safely
             start = responseText.indexOf('>', responseText.indexOf('<script')) + 1;
             end = responseText.indexOf('\<\/script>', start);
-            dynamicScript.innerHTML = responseText.substr(start, end - start);
+            createSafeScript(responseText.substr(start, end - start), dynamicScript);
             responseText = responseText.substr(end + 9);
 
-            // check for last style block, append contents to dynamic_style, then remove here
+            // Handle last style block
             start = responseText.indexOf('>', responseText.indexOf('<style')) + 1;
             end = responseText.indexOf('</style>', start);
-            dynamicStyle.innerHTML += responseText.substr(start, end - start);
+            createSafeStyle(responseText.substr(start, end - start), dynamicStyle);
             responseText = responseText.substr(0, start - 8);
 
-            toolbar.innerHTML = responseText;
+            // Apply main content safely
+            toolbar.textContent = ''; // Clear existing content
+            toolbar.appendChild(createSafeElements(responseText));
 
             if (typeof ciDebugBar === 'object') {
                 ciDebugBar.init();
@@ -71,12 +141,7 @@ function newXHR() {
                 let debugbarTime = realXHR.getResponseHeader('Debugbar-Time');
 
                 if (debugbarTime) {
-                    let h2 = document.querySelector('#ci-history > h2');
-
-                    if (h2) {
-                        h2.innerHTML = 'History <small>You have new debug data.</small> <button onclick="loadDoc(' + debugbarTime + ')">Update</button>';
-                        document.querySelector('a[data-tab="ci-history"] > span > .badge').className += ' active';
-                    }
+                    updateHistoryButton(debugbarTime);
                 }
             }
         }

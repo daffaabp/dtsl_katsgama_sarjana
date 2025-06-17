@@ -625,6 +625,26 @@ var ciDebugBar = {
         return text.replace(/^\/|\/$/g, '');
     },
 
+    /**
+     * Helper to escape HTML special characters
+     * 
+     * @param {string} str
+     * @returns {string}
+     */
+    escapeHTML : function (str) {
+        if (!str) return '';
+        return str.replace(/[&<>"']/g, function(m) {
+            const entityMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return entityMap[m];
+        });
+    },
+
     routerLink: function () {
         var row, _location;
         var rowGet = this.toolbar.querySelectorAll('td[data-debugbar-route="GET"]');
@@ -645,11 +665,35 @@ var ciDebugBar = {
             }
             else
             {
-                row.innerHTML = '<div>' + row.innerText + '</div>'
-                    + '<form data-debugbar-route-tpl="' + ciDebugBar.trimSlash(row.innerText.replace(patt, '?')) + '">'
-                    + row.innerText.replace(patt, '<input type="text" placeholder="$1">')
-                    + '<input type="submit" value="Go" style="margin-left: 4px;">'
-                    + '</form>';
+                // Create elements safely using DOM methods
+                const container = document.createElement('div');
+                const form = document.createElement('form');
+                const input = document.createElement('input');
+                const submit = document.createElement('input');
+                
+                // Setup form
+                const safeText = ciDebugBar.escapeHTML(row.innerText);
+                const routeTpl = ciDebugBar.trimSlash(row.innerText.replace(patt, '?'));
+                form.setAttribute('data-debugbar-route-tpl', routeTpl);
+                
+                // Setup input
+                input.type = 'text';
+                input.placeholder = '$1';
+                
+                // Setup submit
+                submit.type = 'submit';
+                submit.value = 'Go';
+                submit.style.marginLeft = '4px';
+                
+                // Build DOM structure
+                container.textContent = row.innerText;
+                form.appendChild(input);
+                form.appendChild(submit);
+                
+                // Clear and append
+                row.textContent = '';
+                row.appendChild(container);
+                row.appendChild(form);
             }
         }
 

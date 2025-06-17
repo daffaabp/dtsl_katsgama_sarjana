@@ -404,6 +404,57 @@ class Parser extends View
     }
 
     /**
+     * Safely evaluates conditional expressions
+     * 
+     * @param string $condition The condition to evaluate
+     * @param array $data Variable data to extract
+     * @return bool
+     */
+    protected function evaluateCondition(string $condition, array $data): bool
+    {
+        // Whitelist of allowed PHP functions in conditions
+        $allowedFunctions = [
+            'isset', 'empty', 'null', 'is_array', 'is_string', 'is_numeric',
+            'is_int', 'is_float', 'is_bool', 'count', 'strlen', 'in_array',
+            'array_key_exists'
+        ];
+
+        // Basic security checks
+        $condition = trim($condition);
+        
+        // Check for dangerous functions/constructs
+        $dangerousPatterns = [
+            '/\b(exec|system|passthru|shell_exec|proc_open|popen|curl_exec|parse_ini_file|show_source)\b/i',
+            '/\b(eval|assert|create_function)\b/i',
+            '/\b(include|require|include_once|require_once)\b/i',
+            '/\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES|ENV)/i',
+            '/\.\./',
+            '/;\s*$/',
+            '/`/',
+        ];
+
+        foreach ($dangerousPatterns as $pattern) {
+            if (preg_match($pattern, $condition)) {
+                throw ViewException::forDisallowedExpression($condition);
+            }
+        }
+
+        // Extract allowed variables
+        foreach ($data as $key => $value) {
+            if (is_string($key) && is_scalar($value)) {
+                $$key = $value;
+            }
+        }
+
+        try {
+            // Use error suppression to catch potential errors
+            return @eval('return ' . $condition . ';') === true;
+        } catch (ParseError $e) {
+            throw ViewException::forTagSyntaxError($condition . ' - ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Parses any conditionals in the code, removing blocks that don't
      * pass so we don't try to parse it later.
      *
@@ -423,52 +474,88 @@ class Parser extends View
             . $rightDelimiter
             . '/ms';
 
-        /*
-         * For each match:
-         * [0] = raw match `{if var}`
-         * [1] = conditional `if`
-         * [2] = condition `do === true`
-         * [3] = same as [2]
-         */
-        preg_match_all($pattern, $template, $matches, PREG_SET_ORDER);
-
-        foreach ($matches as $match) {
-            // Build the string to replace the `if` statement with.
-            $condition = $match[2];
-
-            $statement = $match[1] === 'elseif' ? '<?php elseif (' . $condition . '): ?>' : '<?php if (' . $condition . '): ?>';
-            $template  = str_replace($match[0], $statement, $template);
-        }
-
-        $template = preg_replace(
-            '/' . $leftDelimiter . '\s*else\s*' . $rightDelimiter . '/ms',
-            '<?php else: ?>',
-            $template
-        );
-        $template = preg_replace(
-            '/' . $leftDelimiter . '\s*endif\s*' . $rightDelimiter . '/ms',
-            '<?php endif; ?>',
-            $template
-        );
-
-        // Parse the PHP itself, or insert an error so they can debug
+        // Initialize output buffer
         ob_start();
-
+        
         if ($this->tempData === null) {
             $this->tempData = $this->data;
         }
 
-        extract($this->tempData);
+        // Process each conditional block
+        $offset = 0;
+        $stack = [];
+        $output = '';
 
-        try {
-            eval('?>' . $template . '<?php ');
-        } catch (ParseError $e) {
-            ob_end_clean();
-
-            throw ViewException::forTagSyntaxError(str_replace(['?>', '<?php '], '', $template));
+        while (preg_match($pattern, $template, $matches, PREG_OFFSET_CAPTURE, $offset)) {
+            $fullMatch = $matches[0][0];
+            $condition = trim($matches[2][0]);
+            $type = $matches[1][0];
+            $startPos = $matches[0][1];
+            
+            // Add text before this conditional
+            $output .= substr($template, $offset, $startPos - $offset);
+            
+            // Find the matching endif
+            $endifPos = $this->findMatchingEndif($template, $startPos + strlen($fullMatch));
+            if ($endifPos === false) {
+                throw ViewException::forTagSyntaxError('Missing endif for condition: ' . $condition);
+            }
+            
+            // Extract the block content
+            $blockContent = substr($template, $startPos + strlen($fullMatch), $endifPos - ($startPos + strlen($fullMatch)));
+            
+            // Evaluate condition
+            try {
+                $conditionMet = $this->evaluateCondition($condition, $this->tempData);
+                if ($conditionMet) {
+                    $output .= $blockContent;
+                }
+            } catch (ViewException $e) {
+                throw $e;
+            }
+            
+            $offset = $endifPos + 6; // 6 is length of {endif}
         }
+        
+        // Add remaining template content
+        $output .= substr($template, $offset);
+        
+        return $output;
+    }
 
-        return ob_get_clean();
+    /**
+     * Finds the matching endif for a conditional
+     * 
+     * @param string $template The template content
+     * @param int $start Starting position to search from
+     * @return false|int Position of matching endif or false if not found
+     */
+    protected function findMatchingEndif(string $template, int $start)
+    {
+        $pattern = '/' . preg_quote($this->leftConditionalDelimiter, '/') 
+                . '\s*(if|elseif|else|endif)\s*'
+                . preg_quote($this->rightConditionalDelimiter, '/') . '/';
+        
+        $offset = $start;
+        $level = 1;
+        
+        while (preg_match($pattern, $template, $matches, PREG_OFFSET_CAPTURE, $offset)) {
+            $type = $matches[1][0];
+            $pos = $matches[0][1];
+            
+            if ($type === 'if') {
+                $level++;
+            } elseif ($type === 'endif') {
+                $level--;
+                if ($level === 0) {
+                    return $pos;
+                }
+            }
+            
+            $offset = $pos + 1;
+        }
+        
+        return false;
     }
 
     /**

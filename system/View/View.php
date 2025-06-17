@@ -262,6 +262,57 @@ class View implements RendererInterface
     }
 
     /**
+     * Safely renders a view string by using temporary files
+     * 
+     * @param string $view View content to render
+     * @return string
+     * @throws ViewException
+     */
+    protected function renderViewString(string $view): string
+    {
+        // Basic security checks
+        if (preg_match('/<\?(?!php|=|$)/i', $view)) {
+            throw ViewException::forInvalidViewSyntax('Potentially malicious PHP opening tags found');
+        }
+
+        // Create temporary file with unique name
+        $tempDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR;
+        $prefix = 'ci_view_' . md5(uniqid(mt_rand(), true));
+        $tmpFile = tempnam($tempDir, $prefix);
+
+        if ($tmpFile === false) {
+            throw ViewException::forInvalidFile('Could not create temporary view file');
+        }
+
+        try {
+            // Add PHP opening tag if not present
+            if (strpos(trim($view), '<?') !== 0) {
+                $view = '<?php' . PHP_EOL . $view;
+            }
+
+            // Write to temporary file
+            if (file_put_contents($tmpFile, $view) === false) {
+                throw ViewException::forInvalidFile('Could not write to temporary view file');
+            }
+
+            // Extract variables into local scope
+            extract($this->tempData);
+
+            // Capture output
+            ob_start();
+            include $tmpFile;
+            $output = ob_get_clean() ?: '';
+
+            return $output;
+        } finally {
+            // Always clean up temporary file
+            if (file_exists($tmpFile)) {
+                unlink($tmpFile);
+            }
+        }
+    }
+
+    /**
      * Builds the output based upon a string and any
      * data that has already been set.
      * Cache does not apply, because there is no "key".
@@ -280,13 +331,12 @@ class View implements RendererInterface
         $saveData ??= $this->saveData;
         $this->prepareTemplateData($saveData);
 
-        $output = (function (string $view): string {
-            extract($this->tempData);
-            ob_start();
-            eval('?>' . $view);
-
-            return ob_get_clean() ?: '';
-        })($view);
+        try {
+            $output = $this->renderViewString($view);
+        } catch (ViewException $e) {
+            log_message('error', 'View rendering error: ' . $e->getMessage());
+            throw $e;
+        }
 
         $this->logPerformance($start, microtime(true), $this->excerpt($view));
         $this->tempData = null;

@@ -31,6 +31,31 @@ class ImageMagickHandler extends BaseHandler
     protected $resource;
 
     /**
+     * List of allowed ImageMagick commands
+     *
+     * @var array
+     */
+    protected $allowedCommands = [
+        'convert',
+        '-resize',
+        '-crop',
+        '-rotate',
+        '-flip',
+        '-flop',
+        '-quality',
+        '-version',
+        '-background',
+        '-flatten',
+        '-font',
+        '-pointsize',
+        '-fill',
+        '-gravity',
+        '-geometry',
+        '-extent',
+        '-annotate'
+    ];
+
+    /**
      * Constructor.
      *
      * @param Images $config
@@ -186,30 +211,75 @@ class ImageMagickHandler extends BaseHandler
      */
     protected function process(string $action, int $quality = 100): array
     {
-        // Do we have a vaild library path?
+        // Do we have a valid library path?
         if (empty($this->config->libraryPath)) {
             throw ImageException::forInvalidImageLibraryPath($this->config->libraryPath);
         }
+
+        // Validate library path
+        $this->validatePath($this->config->libraryPath);
 
         if ($action !== '-version') {
             $this->supportedFormatCheck();
         }
 
+        // Ensure convert binary is available
         if (! preg_match('/convert$/i', $this->config->libraryPath)) {
             $this->config->libraryPath = rtrim($this->config->libraryPath, '/') . '/convert';
         }
 
-        $cmd = $this->config->libraryPath;
-        $cmd .= $action === '-version' ? ' ' . $action : ' -quality ' . $quality . ' ' . $action;
+        // Validate the ImageMagick command
+        $this->validateCommand($action);
 
-        $retval = 1;
-        $output = [];
-        // exec() might be disabled
-        if (function_usable('exec')) {
-            @exec($cmd, $output, $retval);
+        // Build the command
+        $cmd = escapeshellcmd($this->config->libraryPath);
+        
+        // Add quality and action with proper escaping
+        if ($action === '-version') {
+            $cmd .= ' ' . escapeshellarg($action);
+        } else {
+            $cmd .= ' -quality ' . escapeshellarg((string)$quality) . ' ' . $action;
         }
 
-        // Did it work?
+        // Initialize variables
+        $retval = 1;
+        $output = [];
+
+        try {
+            // Use proc_open instead of exec for better control
+            $descriptorspec = [
+                0 => ['pipe', 'r'],  // stdin
+                1 => ['pipe', 'w'],  // stdout
+                2 => ['pipe', 'w']   // stderr
+            ];
+
+            // Open process
+            $process = proc_open($cmd, $descriptorspec, $pipes);
+
+            if (is_resource($process)) {
+                // Get output and errors
+                $output = explode("\n", stream_get_contents($pipes[1]));
+                $errors = stream_get_contents($pipes[2]);
+
+                // Close pipes
+                foreach ($pipes as $pipe) {
+                    fclose($pipe);
+                }
+
+                // Get exit code
+                $retval = proc_close($process);
+
+                // Log errors if any
+                if (!empty($errors)) {
+                    log_message('error', 'ImageMagick Error: ' . $errors);
+                }
+            }
+        } catch (Exception $e) {
+            log_message('error', 'ImageMagick Process Error: ' . $e->getMessage());
+            throw ImageException::forImageProcessFailed($e->getMessage());
+        }
+
+        // Check return value
         if ($retval > 0) {
             throw ImageException::forImageProcessFailed();
         }
@@ -466,5 +536,52 @@ class ImageMagickHandler extends BaseHandler
             default:
                 return $this;
         }
+    }
+
+    /**
+     * Validates ImageMagick command
+     *
+     * @param string $command
+     * @throws ImageException
+     * @return bool
+     */
+    protected function validateCommand(string $command): bool
+    {
+        $parts = explode(' ', trim($command));
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part && $part[0] === '-') {
+                $option = ltrim($part, '-');
+                if (!in_array("-{$option}", $this->allowedCommands, true)) {
+                    throw ImageException::forInvalidImageCreate('Invalid ImageMagick command: ' . $option);
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Validates file path
+     *
+     * @param string $path
+     * @throws ImageException
+     * @return bool
+     */
+    protected function validatePath(string $path): bool
+    {
+        // Check for directory traversal
+        if (strpos($path, '../') !== false || strpos($path, '..\\') !== false) {
+            throw ImageException::forInvalidImageCreate('Invalid file path');
+        }
+
+        // Validate file extension
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        
+        if (!in_array($ext, $allowed, true)) {
+            throw ImageException::forInvalidImageCreate('Invalid file type: ' . $ext);
+        }
+
+        return true;
     }
 }

@@ -13,6 +13,7 @@ namespace CodeIgniter\Commands\Server;
 
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
+use RuntimeException;
 
 /**
  * Launch the PHP development server
@@ -84,34 +85,162 @@ class Serve extends BaseCommand
     ];
 
     /**
+     * Validates the host input
+     * 
+     * @param string $host
+     * @return string|false
+     */
+    protected function validateHost(string $host)
+    {
+        // Allow localhost
+        if ($host === 'localhost') {
+            return $host;
+        }
+
+        // Validate IP address
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return $host;
+        }
+
+        // Validate hostname
+        if (preg_match('/^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$/', $host)) {
+            return $host;
+        }
+
+        return false;
+    }
+
+    /**
+     * Validates the port number
+     * 
+     * @param int $port
+     * @return int|false
+     */
+    protected function validatePort(int $port)
+    {
+        return filter_var($port, FILTER_VALIDATE_INT, [
+            'options' => [
+                'min_range' => 1024,
+                'max_range' => 65535
+            ]
+        ]);
+    }
+
+    /**
+     * Validates and prepares the PHP binary path
+     * 
+     * @param string|null $php
+     * @return string
+     * @throws RuntimeException
+     */
+    protected function validatePhpBinary(?string $php = null)
+    {
+        $php = $php ?? PHP_BINARY;
+
+        // Basic security check for the PHP binary path
+        if (!is_file($php) || !is_executable($php)) {
+            throw new RuntimeException('Invalid PHP binary path: ' . $php);
+        }
+
+        return $php;
+    }
+
+    /**
+     * Validates the document root
+     * 
+     * @param string $docroot
+     * @return string|false
+     */
+    protected function validateDocRoot(string $docroot)
+    {
+        if (!is_dir($docroot)) {
+            return false;
+        }
+
+        // Ensure the path is absolute and normalized
+        $realPath = realpath($docroot);
+        if ($realPath === false) {
+            return false;
+        }
+
+        return $realPath;
+    }
+
+    /**
      * Run the server
      */
     public function run(array $params)
     {
-        // Collect any user-supplied options and apply them.
-        $php  = escapeshellarg(CLI::getOption('php') ?? PHP_BINARY);
-        $host = CLI::getOption('host') ?? 'localhost';
-        $port = (int) (CLI::getOption('port') ?? 8080) + $this->portOffset;
+        try {
+            // Validate PHP binary
+            $php = $this->validatePhpBinary(CLI::getOption('php'));
+            if ($php === false) {
+                throw new RuntimeException('Invalid PHP binary specified');
+            }
 
-        // Get the party started.
-        CLI::write('CodeIgniter development server started on http://' . $host . ':' . $port, 'green');
-        CLI::write('Press Control-C to stop.');
+            // Validate host
+            $host = CLI::getOption('host') ?? 'localhost';
+            $host = $this->validateHost($host);
+            if ($host === false) {
+                throw new RuntimeException('Invalid host specified');
+            }
 
-        // Set the Front Controller path as Document Root.
-        $docroot = escapeshellarg(FCPATH);
+            // Validate port
+            $port = (int) (CLI::getOption('port') ?? 8080) + $this->portOffset;
+            $port = $this->validatePort($port);
+            if ($port === false) {
+                throw new RuntimeException('Invalid port specified');
+            }
 
-        // Mimic Apache's mod_rewrite functionality with user settings.
-        $rewrite = escapeshellarg(__DIR__ . '/rewrite.php');
+            // Validate document root
+            $docroot = FCPATH;
+            $docroot = $this->validateDocRoot($docroot);
+            if ($docroot === false) {
+                throw new RuntimeException('Invalid document root');
+            }
 
-        // Call PHP's built-in webserver, making sure to set our
-        // base path to the public folder, and to use the rewrite file
-        // to ensure our environment is set and it simulates basic mod_rewrite.
-        passthru($php . ' -S ' . $host . ':' . $port . ' -t ' . $docroot . ' ' . $rewrite, $status);
+            // Validate rewrite file
+            $rewriteFile = __DIR__ . '/rewrite.php';
+            if (!is_file($rewriteFile) || !is_readable($rewriteFile)) {
+                throw new RuntimeException('Rewrite file not found or not readable');
+            }
 
-        if ($status && $this->portOffset < $this->tries) {
-            $this->portOffset++;
+            // Build the command with proper escaping
+            $command = sprintf(
+                '%s -S %s:%d -t %s %s',
+                escapeshellarg($php),
+                escapeshellarg($host),
+                $port,
+                escapeshellarg($docroot),
+                escapeshellarg($rewriteFile)
+            );
 
-            $this->run($params);
+            // Get the party started
+            CLI::write('CodeIgniter development server started on http://' . $host . ':' . $port, 'green');
+            CLI::write('Press Control-C to stop.');
+
+            // Execute the command
+            $descriptorspec = [
+                0 => STDIN,
+                1 => STDOUT,
+                2 => STDERR,
+            ];
+            
+            $process = proc_open($command, $descriptorspec, $pipes);
+            if (is_resource($process)) {
+                $status = proc_close($process);
+            } else {
+                throw new RuntimeException('Failed to start the server');
+            }
+
+            if ($status && $this->portOffset < $this->tries) {
+                $this->portOffset++;
+                $this->run($params);
+            }
+
+        } catch (RuntimeException $e) {
+            CLI::error($e->getMessage());
+            exit(1);
         }
     }
 }
