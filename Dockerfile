@@ -1,4 +1,4 @@
-FROM php:8.1.27-fpm
+FROM php:8.4-fpm-alpine3.22
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
