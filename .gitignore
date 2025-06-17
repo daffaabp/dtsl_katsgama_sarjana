@@ -4,7 +4,35 @@ katsgamaonline_sarjana.sql
 catatan-kendala.txt
 report.txt
 panduan-instalasi-docker.md
-writable/
+writable/*
 .cursorrules
 vendor/
 *.log
+
+# Except these directories
+!writable/cache/
+!writable/debugbar/
+!writable/logs/
+!writable/session/
+!writable/uploads/
+
+# Except these files
+!writable/.htaccess
+!writable/*/index.html
+!writable/*/.gitkeep
+
+# But still ignore everything else in those directories
+writable/cache/*
+!writable/cache/index.html
+
+writable/debugbar/*
+!writable/debugbar/.gitkeep
+
+writable/logs/*
+!writable/logs/index.html
+
+writable/session/*
+!writable/session/index.html
+
+writable/uploads/*
+!writable/uploads/index.html
