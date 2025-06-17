@@ -1,18 +1,17 @@
-FROM php:8.2.28-fpm
+FROM php:8.2.28-fpm-alpine
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     git \
     curl \
     libpng-dev \
-    libonig-dev \
+    oniguruma-dev \
     libxml2-dev \
     zip \
     unzip \
     libzip-dev \
-    libicu-dev \
-    default-mysql-client \
-    && rm -rf /var/lib/apt/lists/* \
+    icu-dev \
+    mysql-client \
     && docker-php-ext-configure gd \
     && docker-php-ext-configure intl
 
@@ -35,8 +34,8 @@ COPY --from=composer:2.6.6 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www
 
 # Add user for application
-RUN groupadd -g 1000 www
-RUN useradd -u 1000 -ms /bin/bash -g www www
+RUN addgroup -g 1000 www && \
+    adduser -u 1000 -G www -h /home/www -s /bin/sh -D www
 
 # Copy existing application directory
 COPY . /var/www
