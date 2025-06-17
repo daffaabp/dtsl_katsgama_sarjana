@@ -6,4 +6,5 @@ report.txt
 panduan-instalasi-docker.md
 writable/
 .cursorrules
+vendor/
 *.log
