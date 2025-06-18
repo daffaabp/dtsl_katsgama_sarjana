@@ -223,64 +223,96 @@ class ImageMagickHandler extends BaseHandler
             $this->supportedFormatCheck();
         }
 
-        // Ensure convert binary is available
+        // Ensure convert binary is available and validate path
         if (! preg_match('/convert$/i', $this->config->libraryPath)) {
             $this->config->libraryPath = rtrim($this->config->libraryPath, '/') . '/convert';
+        }
+
+        // Additional path validation for security
+        if (!is_file($this->config->libraryPath) || !is_executable($this->config->libraryPath)) {
+            throw ImageException::forInvalidImageLibraryPath($this->config->libraryPath);
         }
 
         // Validate the ImageMagick command
         $this->validateCommand($action);
 
-        // Build the command
+        // Build the command with proper escaping
         $cmd = escapeshellcmd($this->config->libraryPath);
         
         // Add quality and action with proper escaping
         if ($action === '-version') {
             $cmd .= ' ' . escapeshellarg($action);
         } else {
-            $cmd .= ' -quality ' . escapeshellarg((string)$quality) . ' ' . $action;
+            $cmd .= ' -quality ' . escapeshellarg((string)$quality);
+            
+            // Split action into parts and validate each part
+            $actionParts = explode(' ', $action);
+            foreach ($actionParts as $part) {
+                $part = trim($part);
+                if (!empty($part)) {
+                    // If it's a flag/option, validate it
+                    if ($part[0] === '-') {
+                        $this->validateCommand($part);
+                    }
+                    // If it's a value/argument, escape it
+                    else {
+                        $cmd .= ' ' . escapeshellarg($part);
+                    }
+                }
+            }
         }
 
         // Initialize variables
-        $retval = 1;
         $output = [];
-
+        
         try {
-            // Use proc_open instead of exec for better control
+            // Set up secure descriptor specification
             $descriptorspec = [
-                0 => ['pipe', 'r'],  // stdin
-                1 => ['pipe', 'w'],  // stdout
-                2 => ['pipe', 'w']   // stderr
+                0 => ['pipe', 'r'],  // stdin - read mode
+                1 => ['pipe', 'w'],  // stdout - write mode
+                2 => ['pipe', 'w']   // stderr - write mode
             ];
 
-            // Open process
-            $process = proc_open($cmd, $descriptorspec, $pipes);
+            // Set up secure environment
+            $env = ['PATH' => dirname($this->config->libraryPath)];
+            
+            // Set up secure working directory
+            $cwd = dirname($this->config->libraryPath);
+
+            // Execute the command with enhanced security
+            $process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env);
 
             if (is_resource($process)) {
-                // Get output and errors
+                // Close stdin as we don't need it
+                fclose($pipes[0]);
+
+                // Get output and errors with timeout
+                stream_set_timeout($pipes[1], 5);
+                stream_set_timeout($pipes[2], 5);
+                
                 $output = explode("\n", stream_get_contents($pipes[1]));
                 $errors = stream_get_contents($pipes[2]);
 
-                // Close pipes
-                foreach ($pipes as $pipe) {
-                    fclose($pipe);
-                }
+                // Close remaining pipes
+                fclose($pipes[1]);
+                fclose($pipes[2]);
 
                 // Get exit code
-                $retval = proc_close($process);
+                $exitCode = proc_close($process);
 
-                // Log errors if any
+                // Handle errors
                 if (!empty($errors)) {
                     log_message('error', 'ImageMagick Error: ' . $errors);
                 }
+
+                if ($exitCode !== 0) {
+                    throw ImageException::forImageProcessFailed();
+                }
+            } else {
+                throw ImageException::forImageProcessFailed();
             }
         } catch (Exception $e) {
             log_message('error', 'ImageMagick Process Error: ' . $e->getMessage());
-            throw ImageException::forImageProcessFailed($e->getMessage());
-        }
-
-        // Check return value
-        if ($retval > 0) {
             throw ImageException::forImageProcessFailed();
         }
 

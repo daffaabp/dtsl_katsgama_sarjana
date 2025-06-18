@@ -412,17 +412,10 @@ class Parser extends View
      */
     protected function evaluateCondition(string $condition, array $data): bool
     {
-        // Whitelist of allowed PHP functions in conditions
-        $allowedFunctions = [
-            'isset', 'empty', 'null', 'is_array', 'is_string', 'is_numeric',
-            'is_int', 'is_float', 'is_bool', 'count', 'strlen', 'in_array',
-            'array_key_exists'
-        ];
-
         // Basic security checks
         $condition = trim($condition);
         
-        // Check for dangerous functions/constructs
+        // Check for dangerous patterns
         $dangerousPatterns = [
             '/\b(exec|system|passthru|shell_exec|proc_open|popen|curl_exec|parse_ini_file|show_source)\b/i',
             '/\b(eval|assert|create_function)\b/i',
@@ -439,19 +432,139 @@ class Parser extends View
             }
         }
 
-        // Extract allowed variables
+        // Validate condition only contains allowed characters
+        if (!preg_match('/^[\s\w\d\(\)<>=!&|\'".]+$/', $condition)) {
+            throw ViewException::forDisallowedExpression($condition);
+        }
+
+        // Extract variables from data
+        $vars = [];
         foreach ($data as $key => $value) {
             if (is_string($key) && is_scalar($value)) {
-                $$key = $value;
+                $vars[$key] = $value;
             }
         }
 
         try {
-            // Use error suppression to catch potential errors
-            return @eval('return ' . $condition . ';') === true;
-        } catch (ParseError $e) {
+            return $this->evaluateExpression($condition, $vars);
+        } catch (Exception $e) {
             throw ViewException::forTagSyntaxError($condition . ' - ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Evaluates a boolean expression safely without using eval()
+     * 
+     * @param string $expr The expression to evaluate
+     * @param array $vars Variables to use in evaluation
+     * @return bool
+     */
+    protected function evaluateExpression(string $expr, array $vars): bool 
+    {
+        // Replace variables with their values
+        foreach ($vars as $key => $value) {
+            $expr = str_replace('$' . $key, var_export($value, true), $expr);
+        }
+
+        // Handle basic comparisons
+        $expr = preg_replace_callback(
+            '/([\d\.\'\"]+)\s*(==|!=|>=|<=|>|<)\s*([\d\.\'\"]+)/',
+            function($matches) {
+                $left = trim($matches[1], '"\'');
+                $op = $matches[2];
+                $right = trim($matches[3], '"\'');
+                
+                switch($op) {
+                    case '==': return $left == $right ? 'true' : 'false';
+                    case '!=': return $left != $right ? 'true' : 'false';
+                    case '>=': return $left >= $right ? 'true' : 'false';
+                    case '<=': return $left <= $right ? 'true' : 'false';
+                    case '>': return $left > $right ? 'true' : 'false';
+                    case '<': return $left < $right ? 'true' : 'false';
+                    default: return 'false';
+                }
+            },
+            $expr
+        );
+
+        // Handle logical operators
+        $expr = str_replace(['&&', '||', '!'], [' and ', ' or ', ' not '], $expr);
+        
+        // Handle empty() and isset()
+        $expr = preg_replace_callback(
+            '/empty\(([\$\w\d]+)\)/',
+            function($matches) use ($vars) {
+                $var = trim($matches[1], '$');
+                return (!isset($vars[$var]) || empty($vars[$var])) ? 'true' : 'false';
+            },
+            $expr
+        );
+
+        $expr = preg_replace_callback(
+            '/isset\(([\$\w\d]+)\)/',
+            function($matches) use ($vars) {
+                $var = trim($matches[1], '$');
+                return isset($vars[$var]) ? 'true' : 'false';
+            },
+            $expr
+        );
+
+        // Final evaluation
+        $expr = strtolower($expr);
+        $expr = preg_replace('/[^a-z\s()and|or|not|true|false]/', '', $expr);
+        
+        // Create evaluation context
+        $evalContext = [
+            'true' => true,
+            'false' => false,
+            'and' => function($a, $b) { return $a && $b; },
+            'or' => function($a, $b) { return $a || $b; },
+            'not' => function($a) { return !$a; }
+        ];
+
+        // Parse and evaluate the expression
+        $tokens = preg_split('/\s+/', trim($expr));
+        $result = $this->evaluateTokens($tokens, $evalContext);
+
+        return (bool)$result;
+    }
+
+    /**
+     * Evaluates tokens in a boolean expression
+     * 
+     * @param array $tokens Array of expression tokens
+     * @param array $context Evaluation context with operators
+     * @return bool
+     */
+    protected function evaluateTokens(array $tokens, array $context): bool
+    {
+        if (empty($tokens)) {
+            return false;
+        }
+
+        $stack = [];
+        $operators = ['and', 'or', 'not'];
+
+        foreach ($tokens as $token) {
+            if ($token === '') {
+                continue;
+            }
+
+            if ($token === 'true' || $token === 'false') {
+                $stack[] = $context[$token];
+            } elseif (in_array($token, $operators)) {
+                if ($token === 'not') {
+                    $operand = array_pop($stack);
+                    $stack[] = $context[$token]($operand);
+                } else {
+                    $right = array_pop($stack);
+                    $left = array_pop($stack);
+                    $stack[] = $context[$token]($left, $right);
+                }
+            }
+        }
+
+        return end($stack) ?? false;
     }
 
     /**

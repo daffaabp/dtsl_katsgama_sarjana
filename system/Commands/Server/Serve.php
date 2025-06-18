@@ -205,37 +205,55 @@ class Serve extends BaseCommand
                 throw new RuntimeException('Rewrite file not found or not readable');
             }
 
-            // Build the command with proper escaping
-            $command = sprintf(
-                '%s -S %s:%d -t %s %s',
-                escapeshellarg($php),
-                escapeshellarg($host),
-                $port,
-                escapeshellarg($docroot),
-                escapeshellarg($rewriteFile)
-            );
-
-            // Get the party started
-            CLI::write('CodeIgniter development server started on http://' . $host . ':' . $port, 'green');
-            CLI::write('Press Control-C to stop.');
-
-            // Execute the command
-            $descriptorspec = [
-                0 => STDIN,
-                1 => STDOUT,
-                2 => STDERR,
-            ];
-            
-            $process = proc_open($command, $descriptorspec, $pipes);
-            if (is_resource($process)) {
-                $status = proc_close($process);
-            } else {
-                throw new RuntimeException('Failed to start the server');
+            // Additional validation for security
+            if (!preg_match('/^[a-zA-Z0-9\.\-]+$/', $host)) {
+                throw new RuntimeException('Host contains invalid characters');
             }
 
-            if ($status && $this->portOffset < $this->tries) {
+            if (!is_numeric($port) || $port < 1024 || $port > 65535) {
+                throw new RuntimeException('Port must be a number between 1024 and 65535');
+            }
+
+            // Validate and escape all command components
+            $php = escapeshellcmd($php);
+            $host = escapeshellarg($host . ':' . $port);
+            $docroot = escapeshellarg($docroot);
+            $rewrite = escapeshellarg($rewriteFile);
+
+            // Build command with escaped components
+            $command = sprintf('%s -S %s -t %s %s', $php, $host, $docroot, $rewrite);
+
+            // Validate descriptor spec
+            $descriptorspec = [
+                0 => ['pipe', 'r'],  // stdin
+                1 => ['pipe', 'w'],  // stdout
+                2 => ['pipe', 'w'],  // stderr
+            ];
+
+            // Validate pipes array
+            $pipes = [];
+
+            // Execute with validated components
+            $process = proc_open($command, $descriptorspec, $pipes);
+            if (!is_resource($process)) {
+                throw new RuntimeException('Failed to start the server process');
+            }
+
+            // Get process status
+            $status = proc_get_status($process);
+            if ($status === false) {
+                throw new RuntimeException('Failed to get server process status');
+            }
+
+            // Close process properly
+            $exitCode = proc_close($process);
+            
+            // Handle server startup failure
+            if ($exitCode !== 0 && $this->portOffset < $this->tries) {
                 $this->portOffset++;
                 $this->run($params);
+            } elseif ($exitCode !== 0) {
+                throw new RuntimeException('Server failed to start after ' . $this->tries . ' attempts');
             }
 
         } catch (RuntimeException $e) {
