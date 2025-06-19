@@ -8,6 +8,7 @@ writable/*
 .cursorrules
 vendor/
 *.log
+node_modules/
 
 # Except these directories
 !writable/cache/
