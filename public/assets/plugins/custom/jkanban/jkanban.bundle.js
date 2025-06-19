@@ -286,7 +286,7 @@
                     n.class.forEach(function (e) {
                       i.classList.add(e);
                     }),
-                  (i.innerHTML = s(n.title)),
+                  (i.textContent = n.title),
                   (i.clickfn = n.click),
                   (i.dragfn = n.drag),
                   (i.dragendfn = n.dragend),
@@ -354,7 +354,8 @@
                       (e = e.replace(/^[ ]+/g, "")), v.classList.add(e);
                     }),
                     (v.innerHTML =
-                      '<div class="kanban-title-board">' + p.title + "</div>");
+                      '<div class="kanban-title-board"></div>');
+                    v.querySelector('.kanban-title-board').textContent = p.title;
                   var g = document.createElement("main");
                   if (
                     (g.classList.add("kanban-drag"),
@@ -376,7 +377,7 @@
                         w.class.forEach(function (e) {
                           E.classList.add(e);
                         }),
-                      (E.innerHTML = s(w.title)),
+                      (E.textContent = w.title),
                       (E.clickfn = w.click),
                       (E.dragfn = w.drag),
                       (E.dragendfn = w.dragend),
@@ -425,7 +426,7 @@
                 return (
                   "string" == typeof o &&
                     (o = e.element.querySelector('[data-eid="' + t + '"]')),
-                  (o.innerHTML = n.title),
+                  (o.textContent = n.title),
                   (o.clickfn = n.click),
                   (o.dragfn = n.drag),
                   (o.dragendfn = n.dragend),
@@ -736,24 +737,27 @@
       function (e, t, n) {
         "use strict";
         var o = {};
-        function i(e) {
-          var t = o[e];
-          return (
-            t
-              ? (t.lastIndex = 0)
-              : (o[e] = t = new RegExp("(?:^|\\s)" + e + "(?:\\s|$)", "g")),
-            t
-          );
+        function i(e, t) {
+          var n = e.className || "";
+          var classList = n.split(/\s+/);
+          return classList.indexOf(t) !== -1;
+        }
+        function r(e, t) {
+          var n = e.className || "";
+          var classList = n.split(/\s+/).filter(function(cls) {
+            return cls && cls !== t;
+          });
+          e.className = classList.join(" ");
         }
         t.exports = {
           add: function (e, t) {
             var n = e.className;
             n.length
-              ? i(t).test(n) || (e.className += " " + t)
+              ? !i(e, t) && (e.className += " " + t)
               : (e.className = t);
           },
           rm: function (e, t) {
-            e.className = e.className.replace(i(t), " ").trim();
+            r(e, t);
           },
         };
       },
