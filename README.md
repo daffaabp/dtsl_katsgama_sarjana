@@ -1,6 +1,114 @@
-# dtsl_katsgama_sarjana
+# DTSL Katsgama Sarjana
 
+## Security Updates
 
+### XSS Protection Implementation
+
+We have implemented several security measures to protect against XSS (Cross-Site Scripting) attacks:
+
+1. **Safe JavaScript Bundle**
+   - Created a new safe JavaScript bundle using webpack
+   - Implemented DOMPurify for HTML sanitization
+   - Added safe DOM manipulation functions
+   - Bundle location: `public/assets/js/safe/app.safe.bundle.js`
+
+2. **Safe CSS Bundle**
+   - Created a new safe CSS bundle
+   - Added safe styling rules to prevent overflow exploits
+   - Bundle location: `public/assets/css/safe/app.safe.bundle.css`
+
+3. **Security Helper Functions**
+   - `safeDOM.setInnerHTML()`: Safely set innerHTML with sanitization
+   - `safeDOM.setOuterHTML()`: Safely set outerHTML with sanitization
+   - `safeDOM.insertAdjacentHTML()`: Safely insert HTML with sanitization
+   - `safeDOM.sanitizeURL()`: Sanitize URLs
+   - `safeDOM.sanitizeJSON()`: Sanitize JSON data
+   - `safeDOM.sanitizeFormData()`: Sanitize form data
+   - `safeDOM.sanitizeQueryString()`: Sanitize query strings
+   - `safeDOM.sanitizeAttribute()`: Sanitize HTML attributes
+
+4. **Safe CSS Classes**
+   - `.safe-content`: Safe content container
+   - `.sanitized-content`: Container for sanitized content
+   - `.safe-form`: Safe form styling
+   - `.safe-table`: Safe table styling
+   - `.safe-link`: Safe link styling
+   - `.safe-image`: Safe image styling
+   - `.safe-button`: Safe button styling
+   - `.safe-container`: Safe container styling
+   - `.safe-text`: Safe text styling
+
+### Usage
+
+1. **In JavaScript**
+   ```javascript
+   // Instead of using innerHTML directly
+   element.innerHTML = content; // UNSAFE!
+
+   // Use the safe version
+   safeDOM.setInnerHTML(element, content);
+
+   // For URLs
+   const safeURL = safeDOM.sanitizeURL(userProvidedURL);
+
+   // For JSON
+   const safeJSON = safeDOM.sanitizeJSON(userProvidedJSON);
+
+   // For form data
+   const safeFormData = safeDOM.sanitizeFormData(formData);
+   ```
+
+2. **In HTML/PHP**
+   ```html
+   <!-- Use safe classes -->
+   <div class="safe-content">
+       <?= $userProvidedContent ?>
+   </div>
+
+   <table class="safe-table">
+       <!-- Table content -->
+   </table>
+
+   <form class="safe-form">
+       <!-- Form fields -->
+   </form>
+   ```
+
+### Build Process
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Build bundles:
+   ```bash
+   npm run build
+   ```
+
+### Notes
+
+1. Vendor files (in `public/assets/plugins/custom/` and `public/assets/js/`) still use direct innerHTML/outerHTML. These are minified files and should not be modified directly.
+
+2. All custom JavaScript code should use the safe DOM manipulation functions from `safeDOM`.
+
+3. All user-provided content should be wrapped in safe CSS classes.
+
+4. The build process uses webpack with the following security features:
+   - Babel for safe JavaScript transpilation
+   - DOMPurify for HTML sanitization
+   - Terser for safe minification
+   - Source maps for debugging
+
+### Security Best Practices
+
+1. Always sanitize user input before displaying it in the DOM
+2. Use safe DOM manipulation functions instead of direct innerHTML/outerHTML
+3. Apply safe CSS classes to prevent overflow exploits
+4. Validate and sanitize URLs before using them
+5. Sanitize JSON data before parsing
+6. Use safe form handling to prevent XSS in form submissions
+7. Keep dependencies up to date for security patches
 
 ## Getting started
 
