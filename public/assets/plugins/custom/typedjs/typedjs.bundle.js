@@ -343,7 +343,7 @@
                       ((this.cursor = document.createElement("span")),
                       (this.cursor.className = "typed-cursor"),
                       this.cursor.setAttribute("aria-hidden", !0),
-                      (this.cursor.innerHTML = this.cursorChar),
+                      (this.cursor.textContent = this.cursorChar),
                       this.el.parentNode &&
                         this.el.parentNode.insertBefore(
                           this.cursor,
