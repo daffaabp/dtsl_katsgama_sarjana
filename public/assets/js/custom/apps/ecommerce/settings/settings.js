@@ -1,48 +1,25 @@
 "use strict";
 
 var KTAppEcommerceSettings = {
-    init: function() {
-        // Helper function untuk validasi URL
-        const isSafeUrl = function(url) {
-            try {
-                const parsedUrl = new URL(url);
-                return ['http:', 'https:'].includes(parsedUrl.protocol);
-            } catch (e) {
-                return false;
-            }
-        };
-
-        // Helper function untuk membuat elemen gambar dengan aman
-        const createSafeImage = function(src, classes, altText) {
-            const img = document.createElement('img');
-            if (src && isSafeUrl(src)) {
-                img.setAttribute('src', src);
-            } else {
-                img.setAttribute('src', 'default-placeholder.png'); // fallback image
-            }
-            img.setAttribute('class', classes);
-            img.setAttribute('alt', altText || 'image');
-            return img;
-        };
-
-        // Form Validation untuk Multiple Forms
-        [
+    init: function () {
+        const formIds = [
             "kt_ecommerce_settings_general_form",
             "kt_ecommerce_settings_general_store",
             "kt_ecommerce_settings_general_localization",
             "kt_ecommerce_settings_general_products",
             "kt_ecommerce_settings_general_customers"
-        ].forEach((formId => {
-            const form = document.getElementById(formId);
-            if (!form) return;
+        ];
 
-            const requiredElements = form.querySelectorAll(".required");
-            var targetElement;
-            
-            var validationConfig = {
+        formIds.forEach((formId) => {
+            const formElement = document.getElementById(formId);
+            if (!formElement) return;
+
+            const requiredLabels = formElement.querySelectorAll(".required");
+            let inputElement;
+            const validationConfig = {
                 fields: {},
                 plugins: {
-                    trigger: new FormValidation.plugins.Trigger,
+                    trigger: new FormValidation.plugins.Trigger(),
                     bootstrap: new FormValidation.plugins.Bootstrap5({
                         rowSelector: ".fv-row",
                         eleInvalidClass: "",
@@ -51,45 +28,43 @@ var KTAppEcommerceSettings = {
                 }
             };
 
-            requiredElements.forEach((element => {
-                const row = element.closest(".row");
-                
-                // Find input element
-                targetElement = row.querySelector("input") || 
-                              row.querySelector("textarea") || 
-                              row.querySelector("select");
-                
-                if (targetElement) {
-                    const fieldName = targetElement.getAttribute("name");
-                    validationConfig.fields[fieldName] = {
-                        validators: {
-                            notEmpty: {
-                                message: element.innerText + " is required"
-                            }
+            requiredLabels.forEach((label) => {
+                const row = label.closest(".row");
+                const input = row.querySelector("input");
+                const textarea = row.querySelector("textarea");
+                const select = row.querySelector("select");
+
+                inputElement = input || textarea || select;
+                if (!inputElement) return;
+
+                const fieldName = inputElement.getAttribute("name");
+                validationConfig.fields[fieldName] = {
+                    validators: {
+                        notEmpty: {
+                            message: label.innerText + " is required"
                         }
-                    };
-                }
-            }));
+                    }
+                };
+            });
 
-            // Initialize form validation
-            var formValidation = FormValidation.formValidation(form, validationConfig);
+            const validator = FormValidation.formValidation(formElement, validationConfig);
 
-            // Submit button handler
-            const submitButton = form.querySelector('[data-kt-ecommerce-settings-type="submit"]');
-            submitButton.addEventListener("click", function(e) {
+            const submitButton = formElement.querySelector('[data-kt-ecommerce-settings-type="submit"]');
+            submitButton.addEventListener("click", function (e) {
                 e.preventDefault();
-                
-                formValidation && formValidation.validate().then(function(status) {
+
+                if (!validator) return;
+
+                validator.validate().then(function (status) {
                     console.log("validated!");
-                    
-                    if (status == "Valid") {
+                    if (status === "Valid") {
                         submitButton.setAttribute("data-kt-indicator", "on");
                         submitButton.disabled = true;
-                        
-                        setTimeout(function() {
+
+                        setTimeout(function () {
                             submitButton.removeAttribute("data-kt-indicator");
                             submitButton.disabled = false;
-                            
+
                             Swal.fire({
                                 text: "Form has been successfully submitted!",
                                 icon: "success",
@@ -113,53 +88,42 @@ var KTAppEcommerceSettings = {
                     }
                 });
             });
-        }));
+        });
 
-        // Initialize Tagify
-        document.querySelectorAll('[data-kt-ecommerce-settings-type="tagify"]')
-            .forEach(element => {
-                new Tagify(element);
-            });
+        document.querySelectorAll('[data-kt-ecommerce-settings-type="tagify"]').forEach((el) => {
+            new Tagify(el);
+        });
 
-        // Initialize Select2 with Flags
         (() => {
-            const countryTemplateHandler = (data) => {
-                if (!data.id) return data.text;
-                
-                // Create container
-                const container = document.createElement("span");
-                
-                // Get country flag URL
-                const countryImageUrl = data.element.getAttribute("data-kt-select2-country");
-                
-                // Create and append flag image if URL is valid
-                if (countryImageUrl) {
-                    const flagImage = createSafeImage(
-                        countryImageUrl,
-                        "rounded-circle h-20px me-2",
-                        "country flag"
-                    );
-                    container.appendChild(flagImage);
-                }
-                
-                // Add country name safely
-                const textNode = document.createTextNode(data.text || "");
-                container.appendChild(textNode);
-                
-                return $(container);
+            const formatCountryOption = (option) => {
+                if (!option.id) return option.text;
+
+                const span = document.createElement("span");
+
+                const img = document.createElement("img");
+                const imgSrc = option.element.getAttribute("data-kt-select2-country");
+                img.setAttribute("src", imgSrc);
+                img.setAttribute("class", "rounded-circle h-20px me-2");
+                img.setAttribute("alt", "image");
+
+                const textNode = document.createTextNode(option.text);
+
+                span.appendChild(img);
+                span.appendChild(textNode);
+
+                return $(span);
             };
 
-            // Initialize Select2
             $('[data-kt-ecommerce-settings-type="select2_flags"]').select2({
                 placeholder: "Select a country",
                 minimumResultsForSearch: Infinity,
-                templateSelection: countryTemplateHandler,
-                templateResult: countryTemplateHandler
+                templateSelection: formatCountryOption,
+                templateResult: formatCountryOption
             });
         })();
     }
 };
 
-KTUtil.onDOMContentLoaded(function() {
+KTUtil.onDOMContentLoaded(function () {
     KTAppEcommerceSettings.init();
 });

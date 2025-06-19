@@ -468,4 +468,3 @@ class ImageMagickHandler extends BaseHandler
         }
     }
 }
-
