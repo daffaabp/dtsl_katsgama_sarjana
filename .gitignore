@@ -9,30 +9,6 @@ writable/*
 vendor/
 *.log
 
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Webpack generated files
-public/assets/js/safe/*.js
-public/assets/js/safe/*.js.map
-public/assets/css/safe/*.css
-public/assets/css/safe/*.css.map
-
-# Build files
-dist/
-build/
-.cache/
-
-# IDE and Editor files
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-
 # Except these directories
 !writable/cache/
 !writable/debugbar/

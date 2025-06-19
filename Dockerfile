@@ -12,8 +12,6 @@ RUN apk add --no-cache \
     libzip-dev \
     icu-dev \
     mysql-client \
-    nodejs \
-    npm \
     && docker-php-ext-configure gd \
     && docker-php-ext-configure intl
 
@@ -39,17 +37,8 @@ WORKDIR /var/www
 RUN addgroup -g 1000 www && \
     adduser -u 1000 -G www -h /home/www -s /bin/sh -D www
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install Node.js dependencies
-RUN npm install
-
 # Copy existing application directory
 COPY . /var/www
-
-# Build assets
-RUN npm run build
 
 # Copy existing application directory permissions
 COPY --chown=www:www . /var/www

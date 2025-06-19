@@ -16,24 +16,22 @@
 	<!--begin::Global Stylesheets Bundle(used by all pages)-->
 	<link href="<?php echo site_url() ?>assets/plugins/global/plugins.bundle.css" rel="stylesheet" type="text/css" />
 	<link href="<?php echo site_url() ?>assets/css/style.bundle.css" rel="stylesheet" type="text/css" />
-	<!-- Safe styles -->
-	<link href="<?php echo site_url() ?>assets/css/safe/app.safe.bundle.css" rel="stylesheet" type="text/css" />
 	<!--end::Global Stylesheets Bundle-->
 </head>
 <!--end::Head-->
 <!--begin::Body-->
 
-<body id="kt_app_body" data-kt-app-layout="dark-sidebar" data-kt-app-header-fixed="true" data-kt-app-sidebar-enabled="true" data-kt-app-sidebar-fixed="true" data-kt-app-sidebar-hoverable="true" data-kt-app-sidebar-push-header="true" data-kt-app-sidebar-push-toolbar="true" data-kt-app-sidebar-push-footer="true" data-kt-app-toolbar-enabled="true" class="app-default">
+<body id="kt_body">
 	<!--begin::Theme mode setup on page load-->
 	<script>
 		var defaultThemeMode = "light";
 		var themeMode;
 		if (document.documentElement) {
-			if (document.documentElement.hasAttribute("data-bs-theme-mode")) {
-				themeMode = document.documentElement.getAttribute("data-bs-theme-mode");
+			if (document.documentElement.hasAttribute("data-theme-mode")) {
+				themeMode = document.documentElement.getAttribute("data-theme-mode");
 			} else {
-				if (localStorage.getItem("data-bs-theme") !== null) {
-					themeMode = localStorage.getItem("data-bs-theme");
+				if (localStorage.getItem("data-theme") !== null) {
+					themeMode = localStorage.getItem("data-theme");
 				} else {
 					themeMode = defaultThemeMode;
 				}
@@ -41,14 +39,10 @@
 			if (themeMode === "system") {
 				themeMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 			}
-			document.documentElement.setAttribute("data-bs-theme", themeMode);
+			document.documentElement.setAttribute("data-theme", themeMode);
 		}
 	</script>
 	<!--end::Theme mode setup on page load-->
-	<!--begin::App-->
-	<div class="d-flex flex-column flex-root app-root" id="kt_app_root">
-		<!--begin::Page-->
-		<div class="app-page flex-column flex-column-fluid" id="kt_app_page">
 	<!--begin::Main-->
 	<!--begin::Root-->
 	<div class="d-flex flex-column flex-root">
@@ -297,8 +291,7 @@
 	</script>
 	<!--begin::Global Javascript Bundle(used by all pages)-->
 	<script src="<?php echo site_url() ?>assets/plugins/global/plugins.bundle.js"></script>
-	<!-- Safe JavaScript Bundle -->
-	<script src="<?php echo site_url() ?>assets/js/safe/app.safe.bundle.js"></script>
+	<script src="<?php echo site_url() ?>assets/js/scripts.bundle.js"></script>
 	<script src="<?php echo site_url(); ?>assets/js/alpine.persist.js"></script>
 	<script src="<?php echo site_url(); ?>assets/js/alpine.js" defer></script>
 	<script src="<?php echo site_url(); ?>assets/js/app.js"></script>
