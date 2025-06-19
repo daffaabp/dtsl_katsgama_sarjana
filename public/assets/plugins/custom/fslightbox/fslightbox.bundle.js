@@ -280,7 +280,7 @@
         e.props.sources,
           (o[t] = document.createElement("div")),
           (o[t].className = "".concat(r, "invalid-file-wrapper ").concat(a)),
-          (o[t].innerHTML = "Invalid source"),
+          (o[t].textContent = "Invalid source"),
           i[t].classList.add(g),
           i[t].appendChild(o[t]),
           s[t].removeChild(s[t].firstChild);
@@ -381,7 +381,7 @@
           i = o.sourceMainWrappers;
         (i[t] = document.createElement("div")),
           (i[t].className = "".concat(d, " ").concat(c, " ").concat(a)),
-          (i[t].innerHTML =
+          (i[t].textContent =
             '<div class="fslightbox-loader"><div></div><div></div><div></div><div></div></div>');
         var s = i[t].firstChild;
         (n[t] = function () {
@@ -395,16 +395,16 @@
             (r[t] = document.createElement("div")), o[t].appendChild(r[t]);
           })(e, t);
       }
-      function D(e, t, n, o) {
-        var i = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      function D(e, t) {
+        var n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         i.setAttributeNS(null, "width", t),
           i.setAttributeNS(null, "height", t),
           i.setAttributeNS(null, "viewBox", n);
-        var s = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        var o = document.createElementNS("http://www.w3.org/2000/svg", "path");
         return (
-          s.setAttributeNS(null, "class", "".concat(r, "svg-path")),
-          s.setAttributeNS(null, "d", o),
-          i.appendChild(s),
+          o.setAttributeNS(null, "class", "".concat(r, "svg-path")),
+          o.setAttributeNS(null, "d", n),
+          i.appendChild(o),
           e.appendChild(i),
           i
         );
@@ -436,7 +436,7 @@
                     "M4.5 11H3v4h4v-1.5H4.5V11zM3 7h1.5V4.5H7V3H3v4zm10.5 6.5H11V15h4v-4h-1.5v2.5zM11 3v1.5h2.5V7H15V3h-4z",
                   s = O(t);
                 s.title = "Enter fullscreen";
-                var c = D(s, "20px", "0 0 18 18", i);
+                var c = D(s, "20px");
                 (n.enterFullscreen = function () {
                   (r.isFullscreenOpen = !0),
                     (s.title = "Exit fullscreen"),
@@ -484,12 +484,12 @@
               s.className = a;
               var c = document.createElement("span");
               n.setSlideNumber = function (e) {
-                return (c.innerHTML = e);
+                return (c.textContent = e);
               };
               var l = document.createElement("span");
               l.className = "".concat(r, "slash");
               var u = document.createElement("div");
-              (u.innerHTML = o.length),
+              (u.textContent = o.length),
                 i.appendChild(s),
                 s.appendChild(c),
                 s.appendChild(l),
@@ -544,9 +544,8 @@
         var n = e.classList;
         n.contains(t) && n.remove(t);
       }
-      function V(e) {
-        var t = this,
-          n = e.core,
+      function V(e, t) {
+        var n = e.core,
           o = n.eventsDispatcher,
           r = n.fullscreenToggler,
           i = n.globalEventsController,
@@ -781,20 +780,18 @@
                 (n.changeToNext = function () {}));
           })(e),
           (function (e) {
-            var t,
-              n,
-              o = e.collections.sourceMainWrappersTransformers,
-              r = e.componentsServices,
-              i = e.core,
-              s = i.classFacade,
-              c = i.slideIndexChanger,
-              a = i.sourceDisplayFacade,
-              l = i.stageManager,
-              d = e.elements.sourceAnimationWrappers,
-              p = e.stageIndexes,
-              f =
+            var t = e.collections.sourceMainWrappersTransformers,
+              n = e.componentsServices,
+              o = e.core,
+              r = o.classFacade,
+              i = o.slideIndexChanger,
+              s = o.sourceDisplayFacade,
+              c = o.stageManager,
+              a = e.elements.sourceAnimationWrappers,
+              l = e.stageIndexes,
+              d =
                 ((t = function () {
-                  s.removeFromEachElementClassIfContains(
+                  r.removeFromEachElementClassIfContains(
                     "sourceAnimationWrappers",
                     m,
                   );
@@ -806,29 +803,29 @@
                       n.pop(), n.length || t();
                     }, 300);
                 });
-            (c.changeTo = function (e) {
-              (p.current = e),
-                l.updateStageIndexes(),
-                r.setSlideNumber(e + 1),
-                a.displaySourcesWhichShouldBeDisplayed();
+            (i.changeTo = function (e) {
+              (l.current = e),
+                c.updateStageIndexes(),
+                n.setSlideNumber(e + 1),
+                s.displaySourcesWhichShouldBeDisplayed();
             }),
-              (c.jumpTo = function (e) {
-                var t = p.current;
-                c.changeTo(e),
-                  s.removeFromEachElementClassIfContains(
+              (i.jumpTo = function (e) {
+                var t = l.current;
+                i.changeTo(e),
+                  r.removeFromEachElementClassIfContains(
                     "sourceMainWrappers",
                     u,
                   ),
-                  B(d[t], g),
-                  B(d[t], h),
-                  d[t].classList.add(m),
-                  B(d[e], g),
-                  B(d[e], m),
-                  d[e].classList.add(h),
-                  f(),
-                  o[e].zero(),
+                  B(a[t], g),
+                  B(a[t], h),
+                  a[t].classList.add(m),
+                  B(a[e], g),
+                  B(a[e], m),
+                  a[e].classList.add(h),
+                  d(),
+                  t[e].zero(),
                   setTimeout(function () {
-                    t !== p.current && o[t].negative();
+                    t !== l.current && t[t].negative();
                   }, 270);
               });
           })(e),
