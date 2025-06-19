@@ -28,9 +28,81 @@ function createSafeScript(jsText, target) {
  * @returns {DocumentFragment}
  */
 function createSafeElements(html) {
-    const template = document.createElement('template');
-    template.innerHTML = html;  // Safe because template element prevents script execution
-    return template.content.cloneNode(true);
+    // Sanitize HTML by removing script tags and dangerous attributes
+    const sanitizedHtml = sanitizeHtml(html);
+    
+    // Use DOMParser for safer HTML parsing
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(sanitizedHtml, 'text/html');
+    
+    // Create fragment and move body children to it
+    const fragment = document.createDocumentFragment();
+    while (doc.body.firstChild) {
+        fragment.appendChild(doc.body.firstChild);
+    }
+    
+    return fragment;
+}
+
+/**
+ * Basic HTML sanitization to prevent XSS
+ * @param {string} html
+ * @returns {string}
+ */
+function sanitizeHtml(html) {
+    // Remove script tags and their content
+    html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    // Remove dangerous event handlers
+    html = html.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+    // Remove javascript: protocol
+    html = html.replace(/javascript:/gi, '');
+    return html;
+}
+
+/**
+ * Validate if script content is safe debugbar script
+ * @param {string} scriptContent
+ * @returns {boolean}
+ */
+function isDebugbarScript(scriptContent) {
+    // Check for known debugbar patterns and whitelist safe operations
+    const safePatterns = [
+        /ciDebugBar/,
+        /debugbar/i,
+        /toolbar/i,
+        /console\.log/,
+        /addEventListener/,
+        /querySelector/
+    ];
+    
+    // Reject dangerous patterns
+    const dangerousPatterns = [
+        /eval\s*\(/,
+        /Function\s*\(/,
+        /document\.write/,
+        /innerHTML\s*=/,
+        /location\s*=/,
+        /window\.open/,
+        /<script/i,
+        /javascript:/i
+    ];
+    
+    // Check for dangerous patterns first
+    for (const pattern of dangerousPatterns) {
+        if (pattern.test(scriptContent)) {
+            return false;
+        }
+    }
+    
+    // Check for at least one safe pattern
+    for (const pattern of safePatterns) {
+        if (pattern.test(scriptContent)) {
+            return true;
+        }
+    }
+    
+    // Default to safe for empty or very simple scripts
+    return scriptContent.trim().length === 0 || scriptContent.trim().length < 50;
 }
 
 /**
@@ -99,11 +171,21 @@ function loadDoc(time) {
             createSafeStyle(responseText.substr(start, end - start), dynamicStyle);
             responseText = responseText.substr(end + 8);
 
-            // Extract and apply script safely
-            start = responseText.indexOf('>', responseText.indexOf('<script')) + 1;
-            end = responseText.indexOf('\<\/script>', start);
-            createSafeScript(responseText.substr(start, end - start), dynamicScript);
-            responseText = responseText.substr(end + 9);
+            // Extract and apply script safely with validation using regex
+            const scriptTagPattern = /<script[^>]*>([\s\S]*?)<\/script>/i;
+            const scriptMatch = responseText.match(scriptTagPattern);
+            if (scriptMatch) {
+                const fullMatch = scriptMatch[0];
+                const scriptContent = scriptMatch[1];
+                
+                // Only allow known safe script content from debugbar
+                if (isDebugbarScript(scriptContent)) {
+                    createSafeScript(scriptContent, dynamicScript);
+                }
+                
+                // Remove the processed script block from responseText
+                responseText = responseText.replace(fullMatch, '');
+            }
 
             // Handle last style block
             start = responseText.indexOf('>', responseText.indexOf('<style')) + 1;
