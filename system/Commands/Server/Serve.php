@@ -13,7 +13,6 @@ namespace CodeIgniter\Commands\Server;
 
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
-use RuntimeException;
 
 /**
  * Launch the PHP development server
@@ -85,180 +84,34 @@ class Serve extends BaseCommand
     ];
 
     /**
-     * Validates the host input
-     * 
-     * @param string $host
-     * @return string|false
-     */
-    protected function validateHost(string $host)
-    {
-        // Allow localhost
-        if ($host === 'localhost') {
-            return $host;
-        }
-
-        // Validate IP address
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            return $host;
-        }
-
-        // Validate hostname
-        if (preg_match('/^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$/', $host)) {
-            return $host;
-        }
-
-        return false;
-    }
-
-    /**
-     * Validates the port number
-     * 
-     * @param int $port
-     * @return int|false
-     */
-    protected function validatePort(int $port)
-    {
-        return filter_var($port, FILTER_VALIDATE_INT, [
-            'options' => [
-                'min_range' => 1024,
-                'max_range' => 65535
-            ]
-        ]);
-    }
-
-    /**
-     * Validates and prepares the PHP binary path
-     * 
-     * @param string|null $php
-     * @return string
-     * @throws RuntimeException
-     */
-    protected function validatePhpBinary(?string $php = null)
-    {
-        $php = $php ?? PHP_BINARY;
-
-        // Basic security check for the PHP binary path
-        if (!is_file($php) || !is_executable($php)) {
-            throw new RuntimeException('Invalid PHP binary path: ' . $php);
-        }
-
-        return $php;
-    }
-
-    /**
-     * Validates the document root
-     * 
-     * @param string $docroot
-     * @return string|false
-     */
-    protected function validateDocRoot(string $docroot)
-    {
-        if (!is_dir($docroot)) {
-            return false;
-        }
-
-        // Ensure the path is absolute and normalized
-        $realPath = realpath($docroot);
-        if ($realPath === false) {
-            return false;
-        }
-
-        return $realPath;
-    }
-
-    /**
      * Run the server
      */
     public function run(array $params)
     {
-        try {
-            // Validate PHP binary
-            $php = $this->validatePhpBinary(CLI::getOption('php'));
-            if ($php === false) {
-                throw new RuntimeException('Invalid PHP binary specified');
-            }
+        // Collect any user-supplied options and apply them.
+        $php  = escapeshellarg(CLI::getOption('php') ?? PHP_BINARY);
+        $host = CLI::getOption('host') ?? 'localhost';
+        $port = (int) (CLI::getOption('port') ?? 8080) + $this->portOffset;
 
-            // Validate host
-            $host = CLI::getOption('host') ?? 'localhost';
-            $host = $this->validateHost($host);
-            if ($host === false) {
-                throw new RuntimeException('Invalid host specified');
-            }
+        // Get the party started.
+        CLI::write('CodeIgniter development server started on http://' . $host . ':' . $port, 'green');
+        CLI::write('Press Control-C to stop.');
 
-            // Validate port
-            $port = (int) (CLI::getOption('port') ?? 8080) + $this->portOffset;
-            $port = $this->validatePort($port);
-            if ($port === false) {
-                throw new RuntimeException('Invalid port specified');
-            }
+        // Set the Front Controller path as Document Root.
+        $docroot = escapeshellarg(FCPATH);
 
-            // Validate document root
-            $docroot = FCPATH;
-            $docroot = $this->validateDocRoot($docroot);
-            if ($docroot === false) {
-                throw new RuntimeException('Invalid document root');
-            }
+        // Mimic Apache's mod_rewrite functionality with user settings.
+        $rewrite = escapeshellarg(__DIR__ . '/rewrite.php');
 
-            // Validate rewrite file
-            $rewriteFile = __DIR__ . '/rewrite.php';
-            if (!is_file($rewriteFile) || !is_readable($rewriteFile)) {
-                throw new RuntimeException('Rewrite file not found or not readable');
-            }
+        // Call PHP's built-in webserver, making sure to set our
+        // base path to the public folder, and to use the rewrite file
+        // to ensure our environment is set and it simulates basic mod_rewrite.
+        passthru($php . ' -S ' . $host . ':' . $port . ' -t ' . $docroot . ' ' . $rewrite, $status);
 
-            // Additional validation for security
-            if (!preg_match('/^[a-zA-Z0-9\.\-]+$/', $host)) {
-                throw new RuntimeException('Host contains invalid characters');
-            }
+        if ($status && $this->portOffset < $this->tries) {
+            $this->portOffset++;
 
-            if (!is_numeric($port) || $port < 1024 || $port > 65535) {
-                throw new RuntimeException('Port must be a number between 1024 and 65535');
-            }
-
-            // Validate and escape all command components
-            $php = escapeshellcmd($php);
-            $host = escapeshellarg($host . ':' . $port);
-            $docroot = escapeshellarg($docroot);
-            $rewrite = escapeshellarg($rewriteFile);
-
-            // Build command with escaped components
-            $command = sprintf('%s -S %s -t %s %s', $php, $host, $docroot, $rewrite);
-
-            // Validate descriptor spec
-            $descriptorspec = [
-                0 => ['pipe', 'r'],  // stdin
-                1 => ['pipe', 'w'],  // stdout
-                2 => ['pipe', 'w'],  // stderr
-            ];
-
-            // Validate pipes array
-            $pipes = [];
-
-            // Execute with validated components
-            $process = proc_open($command, $descriptorspec, $pipes);
-            if (!is_resource($process)) {
-                throw new RuntimeException('Failed to start the server process');
-            }
-
-            // Get process status
-            $status = proc_get_status($process);
-            if ($status === false) {
-                throw new RuntimeException('Failed to get server process status');
-            }
-
-            // Close process properly
-            $exitCode = proc_close($process);
-            
-            // Handle server startup failure
-            if ($exitCode !== 0 && $this->portOffset < $this->tries) {
-                $this->portOffset++;
-                $this->run($params);
-            } elseif ($exitCode !== 0) {
-                throw new RuntimeException('Server failed to start after ' . $this->tries . ' attempts');
-            }
-
-        } catch (RuntimeException $e) {
-            CLI::error($e->getMessage());
-            exit(1);
+            $this->run($params);
         }
     }
 }

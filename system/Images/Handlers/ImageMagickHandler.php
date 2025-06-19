@@ -31,31 +31,6 @@ class ImageMagickHandler extends BaseHandler
     protected $resource;
 
     /**
-     * List of allowed ImageMagick commands
-     *
-     * @var array
-     */
-    protected $allowedCommands = [
-        'convert',
-        '-resize',
-        '-crop',
-        '-rotate',
-        '-flip',
-        '-flop',
-        '-quality',
-        '-version',
-        '-background',
-        '-flatten',
-        '-font',
-        '-pointsize',
-        '-fill',
-        '-gravity',
-        '-geometry',
-        '-extent',
-        '-annotate'
-    ];
-
-    /**
      * Constructor.
      *
      * @param Images $config
@@ -211,108 +186,31 @@ class ImageMagickHandler extends BaseHandler
      */
     protected function process(string $action, int $quality = 100): array
     {
-        // Do we have a valid library path?
+        // Do we have a vaild library path?
         if (empty($this->config->libraryPath)) {
             throw ImageException::forInvalidImageLibraryPath($this->config->libraryPath);
         }
-
-        // Validate library path
-        $this->validatePath($this->config->libraryPath);
 
         if ($action !== '-version') {
             $this->supportedFormatCheck();
         }
 
-        // Ensure convert binary is available and validate path
         if (! preg_match('/convert$/i', $this->config->libraryPath)) {
             $this->config->libraryPath = rtrim($this->config->libraryPath, '/') . '/convert';
         }
 
-        // Additional path validation for security
-        if (!is_file($this->config->libraryPath) || !is_executable($this->config->libraryPath)) {
-            throw ImageException::forInvalidImageLibraryPath($this->config->libraryPath);
-        }
+        $cmd = $this->config->libraryPath;
+        $cmd .= $action === '-version' ? ' ' . $action : ' -quality ' . $quality . ' ' . $action;
 
-        // Validate the ImageMagick command
-        $this->validateCommand($action);
-
-        // Build the command with proper escaping
-        $cmd = escapeshellcmd($this->config->libraryPath);
-        
-        // Add quality and action with proper escaping
-        if ($action === '-version') {
-            $cmd .= ' ' . escapeshellarg($action);
-        } else {
-            $cmd .= ' -quality ' . escapeshellarg((string)$quality);
-            
-            // Split action into parts and validate each part
-            $actionParts = explode(' ', $action);
-            foreach ($actionParts as $part) {
-                $part = trim($part);
-                if (!empty($part)) {
-                    // If it's a flag/option, validate it
-                    if ($part[0] === '-') {
-                        $this->validateCommand($part);
-                    }
-                    // If it's a value/argument, escape it
-                    else {
-                        $cmd .= ' ' . escapeshellarg($part);
-                    }
-                }
-            }
-        }
-
-        // Initialize variables
+        $retval = 1;
         $output = [];
-        
-        try {
-            // Set up secure descriptor specification
-            $descriptorspec = [
-                0 => ['pipe', 'r'],  // stdin - read mode
-                1 => ['pipe', 'w'],  // stdout - write mode
-                2 => ['pipe', 'w']   // stderr - write mode
-            ];
+        // exec() might be disabled
+        if (function_usable('exec')) {
+            @exec($cmd, $output, $retval);
+        }
 
-            // Set up secure environment
-            $env = ['PATH' => dirname($this->config->libraryPath)];
-            
-            // Set up secure working directory
-            $cwd = dirname($this->config->libraryPath);
-
-            // Execute the command with enhanced security
-            $process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env);
-
-            if (is_resource($process)) {
-                // Close stdin as we don't need it
-                fclose($pipes[0]);
-
-                // Get output and errors with timeout
-                stream_set_timeout($pipes[1], 5);
-                stream_set_timeout($pipes[2], 5);
-                
-                $output = explode("\n", stream_get_contents($pipes[1]));
-                $errors = stream_get_contents($pipes[2]);
-
-                // Close remaining pipes
-                fclose($pipes[1]);
-                fclose($pipes[2]);
-
-                // Get exit code
-                $exitCode = proc_close($process);
-
-                // Handle errors
-                if (!empty($errors)) {
-                    log_message('error', 'ImageMagick Error: ' . $errors);
-                }
-
-                if ($exitCode !== 0) {
-                    throw ImageException::forImageProcessFailed();
-                }
-            } else {
-                throw ImageException::forImageProcessFailed();
-            }
-        } catch (Exception $e) {
-            log_message('error', 'ImageMagick Process Error: ' . $e->getMessage());
+        // Did it work?
+        if ($retval > 0) {
             throw ImageException::forImageProcessFailed();
         }
 
@@ -569,51 +467,5 @@ class ImageMagickHandler extends BaseHandler
                 return $this;
         }
     }
-
-    /**
-     * Validates ImageMagick command
-     *
-     * @param string $command
-     * @throws ImageException
-     * @return bool
-     */
-    protected function validateCommand(string $command): bool
-    {
-        $parts = explode(' ', trim($command));
-        foreach ($parts as $part) {
-            $part = trim($part);
-            if ($part && $part[0] === '-') {
-                $option = ltrim($part, '-');
-                if (!in_array("-{$option}", $this->allowedCommands, true)) {
-                    throw ImageException::forInvalidImageCreate('Invalid ImageMagick command: ' . $option);
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Validates file path
-     *
-     * @param string $path
-     * @throws ImageException
-     * @return bool
-     */
-    protected function validatePath(string $path): bool
-    {
-        // Check for directory traversal
-        if (strpos($path, '../') !== false || strpos($path, '..\\') !== false) {
-            throw ImageException::forInvalidImageCreate('Invalid file path');
-        }
-
-        // Validate file extension
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        
-        if (!in_array($ext, $allowed, true)) {
-            throw ImageException::forInvalidImageCreate('Invalid file type: ' . $ext);
-        }
-
-        return true;
-    }
 }
+
