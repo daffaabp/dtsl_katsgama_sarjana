@@ -89,31 +89,14 @@ var KTBlockUI = function (e, t) {
     (module.exports = KTBlockUI);
 var KTCookie = {
   get: function (e) {
-    // Security fix: Avoid ReDoS by using safer cookie parsing
-    if (!e || typeof e !== 'string' || e.length > 100) {
-      return null;
-    }
-    
-    // Sanitize cookie name to prevent ReDoS attacks
-    var safeName = e.replace(/[^a-zA-Z0-9_-]/g, '');
-    if (safeName !== e) {
-      return null;
-    }
-    
-    // Use safer approach without dynamic regex construction
-    var cookies = document.cookie.split(';');
-    for (var i = 0; i < cookies.length; i++) {
-      var cookie = cookies[i].trim();
-      var equalIndex = cookie.indexOf('=');
-      if (equalIndex > -1) {
-        var name = cookie.substring(0, equalIndex);
-        var value = cookie.substring(equalIndex + 1);
-        if (name === safeName) {
-          return decodeURIComponent(value);
-        }
-      }
-    }
-    return null;
+    var t = document.cookie.match(
+      new RegExp(
+        "(?:^|; )" +
+          e.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, "\\$1") +
+          "=([^;]*)",
+      ),
+    );
+    return t ? decodeURIComponent(t[1]) : null;
   },
   set: function (e, t, n) {
     null == n && (n = {}),
@@ -2974,22 +2957,10 @@ var KTUtil = (function () {
       }
     },
     hasClass: function (e, t) {
-      if (!e || !t || typeof t !== 'string') return false;
-      
-      // Security fix: Use classList when available (safer)
-      if (e.classList) {
-        return e.classList.contains(t);
-      }
-      
-      // Security fix: Avoid ReDoS by using safer string operations
-      var safeName = t.replace(/[^a-zA-Z0-9_-]/g, '');
-      if (safeName !== t) {
-        return false; // Reject if contains unsafe characters
-      }
-      
-      // Use split and indexOf instead of regex
-      var classes = e.className.split(/\s+/);
-      return classes.indexOf(safeName) !== -1;
+      if (e)
+        return e.classList
+          ? e.classList.contains(t)
+          : new RegExp("\\b" + t + "\\b").test(e.className);
     },
     addClass: function (e, t) {
       if (e && void 0 !== t) {
@@ -3003,41 +2974,17 @@ var KTUtil = (function () {
       }
     },
     removeClass: function (e, t) {
-      if (!e || !t || typeof t !== 'string') return;
-      
-      var n = t.split(" ");
-      
-      // Security fix: Use classList when available (safer)
-      if (e.classList) {
-        for (var i = 0; i < n.length; i++) {
-          var className = KTUtil.trim(n[i]);
-          if (className) {
-            e.classList.remove(className);
-          }
-        }
-      } else {
-        // Security fix: Avoid ReDoS by using safer array operations
-        var currentClasses = e.className.split(/\s+/);
-        
-        for (var r = 0; r < n.length; r++) {
-          var classToRemove = KTUtil.trim(n[r]);
-          if (classToRemove) {
-            // Sanitize class name to prevent ReDoS
-            var safeClassName = classToRemove.replace(/[^a-zA-Z0-9_-]/g, '');
-            if (safeClassName === classToRemove) {
-              // Remove using filter approach instead of regex
-              var filteredClasses = [];
-              for (var j = 0; j < currentClasses.length; j++) {
-                if (currentClasses[j] !== safeClassName) {
-                  filteredClasses.push(currentClasses[j]);
-                }
-              }
-              currentClasses = filteredClasses;
-            }
-          }
-        }
-        
-        e.className = currentClasses.join(' ').trim();
+      if (e && void 0 !== t) {
+        var n = t.split(" ");
+        if (e.classList)
+          for (var i = 0; i < n.length; i++)
+            e.classList.remove(KTUtil.trim(n[i]));
+        else if (KTUtil.hasClass(e, t))
+          for (var r = 0; r < n.length; r++)
+            e.className = e.className.replace(
+              new RegExp("\\b" + KTUtil.trim(n[r]) + "\\b", "g"),
+              "",
+            );
       }
     },
     triggerCustomEvent: function (e, t, n) {
@@ -3608,26 +3555,7 @@ var KTUtil = (function () {
       return !0 === e || "true" === e || (!1 !== e && "false" !== e && e);
     },
     setHTML: function (e, t) {
-      // Security fix: Sanitize HTML content to prevent XSS
-      if (!e || !t) return;
-      
-      // Basic XSS prevention - escape dangerous characters
-      if (typeof t === 'string') {
-        // Simple but effective XSS prevention
-        var sanitized = t
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#x27;')
-          .replace(/\//g, '&#x2F;');
-        
-        // Security fix: Completely avoid innerHTML - use textContent only
-        // This eliminates ALL XSS risks by never parsing HTML
-        e.textContent = sanitized;
-      } else {
-        e.textContent = String(t); // Convert to safe text
-      }
+      e.innerHTML = t;
     },
     getHTML: function (e) {
       if (e) return e.innerHTML;
@@ -3932,56 +3860,16 @@ var KTApp = (function () {
                 }
                 var i;
               });
-              // Security fix: Prevent mass assignment vulnerability
-              var safeDefaults = {
-                container: e,
-                slideBy: "page",
-                autoplay: !0,
-                autoplayButtonOutput: !1,
-              };
-              
-              // Whitelist allowed configuration keys to prevent mass assignment
-              var allowedKeys = [
-                'slideBy', 'autoplay', 'autoplayButtonOutput', 'controls', 
-                'nav', 'mouseDrag', 'loop', 'items', 'responsive', 'gutter',
-                'edgePadding', 'fixedWidth', 'autoHeight', 'speed', 'autoplayTimeout'
-              ];
-              
-              var safeConfig = {};
-              if (t && typeof t === 'object') {
-                for (var key in t) {
-                  if (t.hasOwnProperty(key) && allowedKeys.indexOf(key) !== -1) {
-                    safeConfig[key] = t[key];
-                  }
-                }
-              }
-              
-              // Security fix: Manual property assignment instead of Object.assign
-              // This eliminates mass assignment vulnerability completely
-              var n = {};
-              
-              // Copy safe defaults first
-              n.container = safeDefaults.container;
-              n.slideBy = safeDefaults.slideBy;
-              n.autoplay = safeDefaults.autoplay;
-              n.autoplayButtonOutput = safeDefaults.autoplayButtonOutput;
-              
-              // Then manually assign only safe config properties
-              if (safeConfig.slideBy !== undefined) n.slideBy = safeConfig.slideBy;
-              if (safeConfig.autoplay !== undefined) n.autoplay = safeConfig.autoplay;
-              if (safeConfig.autoplayButtonOutput !== undefined) n.autoplayButtonOutput = safeConfig.autoplayButtonOutput;
-              if (safeConfig.controls !== undefined) n.controls = safeConfig.controls;
-              if (safeConfig.nav !== undefined) n.nav = safeConfig.nav;
-              if (safeConfig.mouseDrag !== undefined) n.mouseDrag = safeConfig.mouseDrag;
-              if (safeConfig.loop !== undefined) n.loop = safeConfig.loop;
-              if (safeConfig.items !== undefined) n.items = safeConfig.items;
-              if (safeConfig.responsive !== undefined) n.responsive = safeConfig.responsive;
-              if (safeConfig.gutter !== undefined) n.gutter = safeConfig.gutter;
-              if (safeConfig.edgePadding !== undefined) n.edgePadding = safeConfig.edgePadding;
-              if (safeConfig.fixedWidth !== undefined) n.fixedWidth = safeConfig.fixedWidth;
-              if (safeConfig.autoHeight !== undefined) n.autoHeight = safeConfig.autoHeight;
-              if (safeConfig.speed !== undefined) n.speed = safeConfig.speed;
-              if (safeConfig.autoplayTimeout !== undefined) n.autoplayTimeout = safeConfig.autoplayTimeout;
+              const n = Object.assign(
+                {},
+                {
+                  container: e,
+                  slideBy: "page",
+                  autoplay: !0,
+                  autoplayButtonOutput: !1,
+                },
+                t,
+              );
               e.closest(".tns") &&
                 KTUtil.addClass(e.closest(".tns"), "tns-initiazlied"),
                 tns(n);
@@ -4094,24 +3982,13 @@ var KTApp = (function () {
                     : "left",
                   o = function (e, t) {
                     var n = moment();
-                    if (i) {
-                      // Security fix: Use textContent instead of innerHTML for date display
-                      // This prevents XSS while maintaining functionality
-                      var dateText = "";
-                      
-                      if (n.isSame(e, "day") && n.isSame(t, "day")) {
-                        // Validate and sanitize moment format output
-                        dateText = e.isValid() ? e.format("D MMM YYYY") : "Invalid Date";
-                      } else {
-                        // Validate both date objects before formatting
-                        var startDate = e.isValid() ? e.format("D MMM YYYY") : "Invalid Date";
-                        var endDate = t.isValid() ? t.format("D MMM YYYY") : "Invalid Date";
-                        dateText = startDate + " - " + endDate;
-                      }
-                      
-                      // Use textContent instead of innerHTML to prevent XSS
-                      i.textContent = dateText;
-                    }
+                    i &&
+                      (n.isSame(e, "day") && n.isSame(t, "day")
+                        ? (i.innerHTML = e.format("D MMM YYYY"))
+                        : (i.innerHTML =
+                            e.format("D MMM YYYY") +
+                            " - " +
+                            t.format("D MMM YYYY")));
                   };
                 "today" === e.getAttribute("data-kt-daterangepicker-range") &&
                   ((t = moment()), (n = moment())),
